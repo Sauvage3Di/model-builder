@@ -1,0 +1,1515 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Model Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: three-pane CAD bench. Library rail | 3D stage | inspector + prescription. Stacks to one column on phones. */
+:root {
+  --bg: #e9eef0;
+  --panel: #f7f9f9;
+  --raised: #ffffff;
+  --ink: #142027;
+  --ink-2: #4c5c65;
+  --ink-3: #7b8a92;
+  --line: #d3dcdf;
+  --accent: #2c4fd0;
+  --accent-soft: #e2e8fb;
+  --accent-ink: #ffffff;
+  --select: #c77700;
+  --warn: #b5400f;
+  --warn-soft: #fbe7dd;
+  --stage: #dfe5e7;
+  --t-inc: #2c4fd0; --t-can: #0b7a6a; --t-pm: #a65a08; --t-mol: #6a3db5; --badge-ink: #ffffff;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1518; --panel: #151d21; --raised: #1b252a; --ink: #e3eaed; --ink-2: #9fb0b8; --ink-3: #6f818a;
+    --line: #273439; --accent: #7f9bff; --accent-soft: #1f2a4d; --accent-ink: #0d1430; --select: #f0a43a;
+    --warn: #ff8a5c; --warn-soft: #3a2018; --stage: #0b1114; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1518; --panel: #151d21; --raised: #1b252a; --ink: #e3eaed; --ink-2: #9fb0b8; --ink-3: #6f818a;
+  --line: #273439; --accent: #7f9bff; --accent-soft: #1f2a4d; --accent-ink: #0d1430; --select: #f0a43a;
+  --warn: #ff8a5c; --warn-soft: #3a2018; --stage: #0b1114; color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 13.5px; line-height: 1.45; }
+* { box-sizing: border-box; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 268px minmax(0, 1fr) 308px;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* ---------- top bar ---------- */
+.bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.brand { display: flex; align-items: baseline; gap: 8px; margin-right: auto; }
+.brand h1 { font-family: var(--display); font-weight: 600; font-size: 19px; letter-spacing: 0.01em; margin: 0; }
+.brand span { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.group { display: flex; align-items: center; gap: 6px; }
+.group > .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r); background: var(--raised); overflow: hidden; }
+.seg button { border: 0; background: none; padding: 5px 10px; font-size: 12.5px; color: var(--ink-2); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.btn { border: 1px solid var(--line); background: var(--raised); border-radius: var(--r); padding: 5px 10px; font-size: 12.5px; }
+.btn:hover:not(:disabled) { border-color: var(--ink-3); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.danger { color: var(--warn); }
+.btn.danger-solid { background: var(--warn); border-color: var(--warn); color: var(--badge-ink); }
+.modal-back { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgb(10 16 20 / 0.45);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.modal { width: min(400px, 100%); background: var(--raised); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: grid; gap: 10px; box-shadow: 0 20px 50px rgb(0 0 0 / 0.3); }
+.modal h2 { margin: 0; font-family: var(--display); font-size: 19px; font-weight: 600; }
+.modal p { margin: 0; color: var(--ink-2); }
+.bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+/* model builder panel */
+.mbp { padding: 0 14px 14px; display: grid; gap: 2px; }
+.mbp details { border-top: 1px solid var(--line); }
+.mbp summary { cursor: pointer; padding: 10px 0; font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; font-weight: 600; color: var(--ink-2); user-select: none; }
+.mbp summary:hover { color: var(--ink); }
+.mbp details[open] summary { color: var(--accent); }
+.mbp details > *:not(summary) { margin: 0 0 8px; }
+.mbp .sub { font-size: 12px; color: var(--ink-3); line-height: 1.45; }
+.mbp p.sub { margin: 4px 0 8px; }
+.mbp .row-b { display: flex; flex-wrap: wrap; gap: 6px; }
+.mbp .lab { display: block; font-size: 12.5px; color: var(--ink-2); margin: 8px 0 2px; }
+.mbp .lab .v { float: right; font-family: var(--mono); color: var(--ink-3); }
+.mbp input[type=range] { width: 100%; accent-color: var(--accent); }
+.mbp .txt { width: 100%; border: 1px solid var(--line); background: var(--raised); border-radius: 5px; padding: 6px 8px; }
+.mbp .btn.wide, .tp .btn.wide, .insp .btn.wide { width: 100%; }
+.mbp .btn.wide + .btn.wide { margin-top: 6px; }
+.tp > .btn.danger.wide, .mb-go .btn.danger.wide { margin-top: 10px; }
+.mb-model { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 4px; }
+.mb-model .sub { line-height: 1.6; }
+.mb-go { display: grid; gap: 6px; padding-top: 12px; }
+.stage .navb { position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 6; padding: 8px 14px; font-weight: 600; box-shadow: 0 2px 8px rgb(0 0 0 / 0.2); }
+#mb-prev { left: 10px; } #mb-next { right: 10px; }
+.mbhint { position: absolute; left: 10px; bottom: 58px; font-size: 12px; color: var(--ink-2); pointer-events: none; }
+.stage:not(.step-model) .mbhint, .stage:not(.step-model) .navb { display: none; }
+.stage.step-model .views, .stage.step-model .labels, .stage.step-bool .labels, .stage.step-bool #numsToggle { display: none; }
+.stage.step-model .toast { bottom: 84px; }
+.app.model-step, .app.bool-step { grid-template-columns: 320px minmax(0, 1fr); }
+.app.model-step .insp, .app.bool-step .insp { display: none; }
+@media (max-width: 980px) { .app.model-step, .app.bool-step { grid-template-columns: 290px minmax(0, 1fr); } }
+@media (max-width: 640px) { .app.model-step, .app.bool-step { grid-template-columns: minmax(0, 1fr); } }
+/* boolean results */
+.bres { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
+.bres h3 { margin: 0; font-family: var(--display); font-size: 15px; font-weight: 600; }
+.bres .ok { color: var(--t-can); font-weight: 600; }
+.bres .no { color: var(--warn); font-weight: 600; }
+.bres ul { margin: 0; padding-left: 16px; font-size: 12.5px; color: var(--ink-2); display: grid; gap: 4px; }
+.bres li button { margin-left: 6px; padding: 1px 7px; font-size: 11.5px; }
+.btabs { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--raised); }
+.btabs button { border: 0; background: none; padding: 8px 6px; font-size: 12.5px; font-weight: 500; color: var(--ink-2); line-height: 1.25; }
+.btabs button + button { border-left: 1px solid var(--line); }
+.btabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+.plist { display: grid; gap: 3px; font-size: 12.5px; }
+.pvbar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center;
+  max-width: calc(100% - 20px); padding: 6px 8px; border-radius: 8px; background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--line); box-shadow: 0 2px 10px rgb(0 0 0 / 0.15); }
+.pvlab { display: grid; text-align: center; min-width: 170px; }
+.pvlab b { font-size: 19px; line-height: 1.2; }
+.pvlab span { font-size: 12px; color: var(--ink-2); }
+.pvnav { font-size: 20px; line-height: 1; padding: 4px 12px; }
+.stage.print-view .views, .stage.print-view .status { display: none; }
+.pvlist { display: grid; gap: 6px; }
+.pvitem { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 10px; align-items: center; text-align: left; padding: 5px; border-radius: 8px; border: 1px solid var(--line); background: var(--raised, var(--panel)); color: var(--ink); cursor: pointer; font: inherit; }
+.pvitem[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.pvitem img { width: 84px; height: 60px; border-radius: 5px; background: var(--stage); display: block; }
+.pvitem b { font-size: 14px; display: block; }
+.pvitem small { color: var(--ink-3); font-family: var(--mono); font-size: 11px; }
+.pvitem .w { color: var(--warn); font-size: 11.5px; display: block; }
+.plist div { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.plist small { color: var(--ink-3); font-family: var(--mono); font-size: 11px; }
+.plist .w { color: var(--warn); font-size: 11.5px; grid-column: 2; }
+.prow { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-2); }
+.prow input[type=number] { width: 80px; border: 1px solid var(--line); background: var(--raised); border-radius: 5px; padding: 4px 6px; font-family: var(--mono); }
+.icon-btn { width: 30px; padding: 5px 0; text-align: center; }
+details.menu { position: relative; }
+details.menu > summary { list-style: none; }
+details.menu > summary::-webkit-details-marker { display: none; }
+.menu-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 250px; background: var(--raised);
+  border: 1px solid var(--line); border-radius: var(--r); padding: 6px; display: grid; gap: 2px; box-shadow: 0 10px 30px rgb(0 0 0 / 0.14); }
+.menu-pop button { text-align: left; border: 0; background: none; padding: 7px 9px; border-radius: 4px; display: grid; gap: 1px; }
+.menu-pop button:hover:not(:disabled) { background: var(--accent-soft); }
+.menu-pop button:disabled { opacity: 0.45; cursor: default; }
+.menu-pop small { color: var(--ink-3); font-size: 11.5px; }
+.menu-pop hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
+
+/* ---------- panels ---------- */
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+.panel-h { padding: 12px 14px 8px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.panel-h h2 { font-family: var(--display); font-size: 14px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; margin: 0; }
+.panel-h small { color: var(--ink-3); font-size: 11.5px; }
+.sec { padding: 4px 14px 12px; display: grid; gap: 8px; }
+.sec + .sec { border-top: 1px solid var(--line); padding-top: 12px; }
+.fam-h { display: flex; align-items: center; gap: 10px; }
+.fam-h svg { flex: none; }
+.fam-h b { font-weight: 600; font-size: 13.5px; display: block; }
+.fam-h small { color: var(--ink-3); font-size: 11.5px; display: block; line-height: 1.35; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.preset { border: 1px solid var(--line); background: var(--raised); border-radius: 5px; padding: 4px 8px; font-family: var(--mono); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.preset:hover { border-color: var(--accent); }
+.preset[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+details.brandset { border-top: 1px solid var(--line); }
+details.brandset > summary { padding: 10px 14px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 10px; list-style: none; user-select: none; }
+details.brandset > summary::-webkit-details-marker { display: none; }
+details.brandset > summary:hover { background: var(--raised); }
+details.brandset > summary .sum-name { flex: 1; min-width: 0; }
+details.brandset > summary small { font-weight: 400; color: var(--ink-3); font-family: var(--mono); font-size: 11px; white-space: nowrap; }
+details.brandset > summary .chev { flex: none; width: 10px; color: var(--ink-3); transition: transform .15s; }
+details.brandset[open] > summary .chev { transform: rotate(90deg); }
+details.brandset > summary svg.shape { flex: none; }
+details.brandset:has([aria-pressed="true"]) > summary .sum-name::after { content: " •"; color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { details.brandset > summary .chev { transition: none; } }
+details.brandset .sec { padding-top: 0; }
+.subh { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+
+.tool { position: sticky; bottom: 10px; margin: auto 10px 10px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--r); padding: 10px 12px; display: grid; gap: 8px; }
+.tool-h { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.tool-h b { font-size: 13px; }
+.tool-h span { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.row > label, .row > .lbl { font-size: 12px; color: var(--ink-2); }
+select.sel { border: 1px solid var(--line); background: var(--raised); border-radius: 5px; padding: 4px 6px; font-size: 12.5px; }
+.hint { font-size: 11.5px; color: var(--ink-3); }
+kbd { font-family: var(--mono); font-size: 10.5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; background: var(--raised); }
+
+/* ---------- stage ---------- */
+.stage { position: relative; border-radius: 8px; overflow: hidden; background: var(--stage); border: 1px solid var(--line); min-height: 0; }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.stage.placing canvas { cursor: crosshair; }
+.status { position: absolute; left: 10px; top: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; }
+.chip { background: color-mix(in srgb, var(--raised) 88%, transparent); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font-size: 12px; backdrop-filter: blur(6px); }
+.chip.on { border-color: var(--accent); color: var(--accent); }
+.views { position: absolute; right: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.views .btn { padding: 4px 8px; font-size: 12px; background: color-mix(in srgb, var(--raised) 88%, transparent); }
+.toast { position: absolute; left: 10px; bottom: 10px; max-width: min(380px, calc(100% - 20px)); background: var(--ink); color: var(--bg); border-radius: var(--r); padding: 7px 11px; font-size: 12.5px; opacity: 0; transform: translateY(4px); transition: opacity .18s, transform .18s; pointer-events: none; }
+.toast.show { opacity: 1; transform: none; }
+.tip { position: absolute; pointer-events: none; background: var(--raised); border: 1px solid var(--line); border-radius: 5px; padding: 3px 8px; font-size: 12px; white-space: nowrap; transform: translate(12px, 12px); }
+.tip b { font-family: var(--mono); font-weight: 500; margin-right: 4px; }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-2); font-size: 13px; }
+
+/* ---------- inspector ---------- */
+.insp-empty { color: var(--ink-2); font-size: 12.5px; display: grid; gap: 6px; }
+.sel-title { display: grid; gap: 2px; }
+.sel-title b { font-size: 15px; font-family: var(--display); font-weight: 600; }
+.sel-title span { color: var(--ink-2); font-size: 12px; }
+.dims { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.field { display: grid; gap: 3px; }
+.field label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-3); }
+.field input { width: 100%; border: 1px solid var(--line); background: var(--raised); border-radius: 5px; padding: 5px 7px; font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.range-row { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: 8px; align-items: center; }
+.range-row input[type=range] { width: 100%; accent-color: var(--accent); }
+.range-row output { font-family: var(--mono); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+.warnbox { background: var(--warn-soft); color: var(--warn); border-radius: 5px; padding: 6px 9px; font-size: 12px; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.rx-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.rx-group { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); margin-top: 4px; }
+.rx { display: grid; gap: 2px; }
+.rx-item { display: grid; }
+.rx-item.open { margin-bottom: 6px; }
+.rx-edit { display: grid; gap: 10px; padding: 10px 10px 12px; background: var(--raised); border: 1px solid var(--select); border-top: 0; border-radius: 0 0 6px 6px; }
+.rx-item.open > button[data-rx] { border-radius: 6px 6px 0 0; border-bottom-color: var(--line); }
+.rx .chev { width: 10px; color: var(--ink-3); transition: transform .15s; }
+.rx-item.open .chev { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .rx .chev { transition: none; } }
+.rx button[data-rx] { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto 10px; gap: 8px; align-items: center; text-align: left; border: 1px solid transparent; background: none; border-radius: 5px; padding: 5px 6px; }
+.rx button[data-rx]:hover { background: var(--raised); border-color: var(--line); }
+.rx button[data-rx][aria-current="true"] { background: var(--raised); border-color: var(--select); }
+.rx .tn { font-family: var(--mono); font-weight: 500; font-size: 13px; text-align: center; border-radius: 4px; background: var(--accent-soft); color: var(--accent); padding: 1px 0; }
+.rx .desc { min-width: 0; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rx .desc small { color: var(--ink-3); font-family: var(--mono); font-size: 11px; }
+.rx .flag { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+.example-note { font-size: 11.5px; color: var(--ink-3); }
+
+/* Narrower desktops: slimmer side panels, library always beside the scan */
+@media (max-width: 1200px) {
+  .app { grid-template-columns: 220px minmax(0, 1fr) 270px; }
+  .fam-h small { display: none; }
+}
+/* Tablets and small windows: library stays on the left of the scan; the
+   Selected/Prescription panel moves under them, still on screen */
+@media (max-width: 980px) {
+  .app { grid-template-columns: 200px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; }
+  .lib { grid-column: 1; grid-row: 2; }
+  .stage-wrap { grid-column: 2; grid-row: 2; }
+  .insp { grid-column: 1 / -1; grid-row: 3; max-height: 36vh; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; }
+  .insp > .panel-h { grid-column: 1 / -1; }
+  .insp > .sec + .sec { border-top: 0; border-left: 1px solid var(--line); padding-top: 4px; }
+  .presets { gap: 4px; }
+  .preset { padding: 3px 6px; font-size: 11px; }
+}
+/* Phones: one column, the library becomes a strip right under the scan */
+@media (max-width: 640px) {
+  html, body { height: auto; }
+  .app { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; }
+  .bar { grid-column: 1; grid-row: auto; order: 0; }
+  .stage-wrap { grid-column: 1; grid-row: auto; order: 1; }
+  .stage { height: 60vh; min-height: 320px; }
+  .lib { grid-column: 1; grid-row: auto; order: 2; max-height: 42vh; }
+  .insp { grid-column: 1; grid-row: auto; order: 3; max-height: none; display: flex; }
+  .insp > .sec + .sec { border-left: 0; border-top: 1px solid var(--line); padding-top: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+/* ---------- steps ---------- */
+.steps button { font-weight: 500; }
+.steps button .n { font-family: var(--mono); font-size: 11px; opacity: 0.75; margin-right: 4px; }
+
+/* ---------- tooth number badges over the scan ---------- */
+.labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.leaders { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.leaders line { stroke: var(--ink-2); stroke-width: 1.2; }
+.leaders circle { fill: var(--raised); stroke: var(--ink); stroke-width: 1.4; }
+.stage.step-teeth .leaders circle { r: 3.5; }
+.tdot { position: absolute; left: 0; top: 0; width: 16px; height: 16px; margin: 0; border-radius: 50%; background: transparent; pointer-events: auto; cursor: move; touch-action: none; border: 0; padding: 0; }
+.stage.step-attach .tdot { pointer-events: none; }
+.tlabel { position: absolute; left: 0; top: 0; min-width: 28px; height: 24px; padding: 0 5px; border-radius: 3px;
+  border: 1.5px solid var(--raised); background: var(--accent); color: var(--accent-ink); font-family: var(--mono); font-size: 12.5px; font-weight: 500;
+  display: grid; place-items: center; pointer-events: auto; cursor: grab; box-shadow: 0 1px 4px rgb(0 0 0 / 0.25); touch-action: none; }
+.tlabel.k1 { background: var(--t-inc); } .tlabel.k2 { background: var(--t-can); } .tlabel.k3 { background: var(--t-pm); } .tlabel.k4 { background: var(--t-mol); }
+.tlabel { color: var(--badge-ink); }
+.tlabel.dup { background: var(--warn); }
+.tlabel:hover { outline: 2px solid var(--ink); outline-offset: 1px; }
+.tlabel.active { outline: 3px solid var(--select); outline-offset: 1px; }
+.tlabel.dragging { cursor: grabbing; }
+.app.teeth-step { grid-template-columns: 330px minmax(0, 1fr) 308px; }
+@media (max-width: 1200px) { .app.teeth-step { grid-template-columns: 300px minmax(0, 1fr) 250px; } }
+@media (max-width: 980px) { .app.teeth-step { grid-template-columns: 290px minmax(0, 1fr); } }
+@media (max-width: 640px) { .app.teeth-step { grid-template-columns: minmax(0, 1fr); } }
+.stage.step-attach .tlabel { pointer-events: none; opacity: 0.85; min-width: 22px; height: 20px; font-size: 11px; }
+.stage.nums-off .leaders, .stage.nums-off .tdot { display: none; }
+/* tooth number labels belong to the Teeth step only */
+.stage.step-attach .labels, .stage.step-attach #numsToggle { display: none; }
+.stage.nums-off .tlabel { display: none; }
+.tpop { position: absolute; z-index: 15; width: 268px; background: var(--raised); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+  display: grid; gap: 8px; box-shadow: 0 10px 30px rgb(0 0 0 / 0.18); }
+.tpop-h { display: flex; justify-content: space-between; align-items: center; }
+.tpop-h b { font-family: var(--display); font-size: 14px; }
+.tpop .x { border: 0; background: none; font-size: 18px; line-height: 1; color: var(--ink-3); padding: 0 2px; }
+.tpop select { width: 100%; }
+.chk { display: flex; gap: 6px; align-items: flex-start; font-size: 12px; color: var(--ink-2); }
+.chk input { margin-top: 2px; accent-color: var(--accent); }
+.views[data-layout="side"] [data-view]:not([data-view="fit"]) { display: none; }
+
+/* ---------- teeth panel ---------- */
+.tp { padding: 4px 14px 14px; display: grid; gap: 12px; }
+.tp-arch { display: grid; gap: 6px; }
+.tp-arch-h { display: flex; justify-content: space-between; align-items: baseline; }
+.tp-arch-h b { font-family: var(--display); font-size: 14px; font-weight: 600; }
+.tp-arch-h small { color: var(--ink-3); font-size: 11.5px; }
+.tchips { display: flex; flex-wrap: wrap; gap: 4px; }
+.tchip { font-family: var(--mono); font-size: 11.5px; min-width: 26px; text-align: center; padding: 2px 5px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); border: 0; }
+.tchip.dup { background: var(--warn-soft); color: var(--warn); }
+.tp .warnbox { margin: 0; }
+.typegrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+.typegrid button { border: 1px solid var(--line); background: var(--raised); border-radius: 5px; padding: 5px 2px 4px; display: grid; gap: 1px; justify-items: center; }
+.typegrid button b { font-family: var(--mono); font-size: 14px; font-weight: 500; }
+.typegrid button small { font-size: 10.5px; color: var(--ink-3); }
+.typegrid button:hover { border-color: var(--ink-3); }
+.typegrid button[aria-pressed="true"] { border-color: var(--select); box-shadow: inset 0 0 0 1px var(--select); }
+.typegrid .k1 b { color: var(--t-inc); } .typegrid .k2 b { color: var(--t-can); } .typegrid .k3 b { color: var(--t-pm); } .typegrid .k4 b { color: var(--t-mol); }
+.chart { display: grid; gap: 4px; }
+.chart-row { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 2px; }
+.chart-row.split { position: relative; }
+.chart-cell { border: 1px solid transparent; border-radius: 4px; padding: 4px 0; font-family: var(--mono); font-size: 10.5px; text-align: center; color: var(--badge-ink); min-width: 0; }
+.chart-cell.k1 { background: var(--t-inc); } .chart-cell.k2 { background: var(--t-can); } .chart-cell.k3 { background: var(--t-pm); } .chart-cell.k4 { background: var(--t-mol); }
+.chart-cell.gone { background: transparent; color: var(--ink-3); border: 1px dashed var(--ink-3); text-decoration: line-through; }
+.chart-cell.dup { background: var(--warn); }
+.chart-cell:hover { outline: 2px solid var(--ink); outline-offset: 0; }
+.chart-cell:nth-child(8) { margin-right: 3px; }
+.chart-lbl { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; color: var(--ink-2); }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.tp .btn.wide { width: 100%; }
+
+/* ---------- intake: first screen ---------- */
+.intake { min-height: 100%; display: grid; align-content: center; justify-items: center; gap: 22px;
+  padding-block: 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.intake-h { text-align: center; display: grid; gap: 6px; max-width: 640px; }
+.intake-h .kicker { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); letter-spacing: 0.06em; text-transform: uppercase; }
+.intake-h h1 { font-family: var(--display); font-weight: 600; font-size: clamp(26px, 4vw, 34px); margin: 0; letter-spacing: 0.005em; text-wrap: balance; }
+.intake-h p { margin: 0; color: var(--ink-2); }
+.drops { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; width: min(900px, 100%); }
+.drop { position: relative; display: grid; grid-template-rows: auto 1fr auto; gap: 12px; min-height: 290px; padding: 18px;
+  border: 1.5px dashed var(--ink-3); border-radius: 12px; background: var(--panel); text-align: left; transition: border-color .15s, background .15s; }
+.drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop.loaded { border-style: solid; border-color: var(--line); background: var(--raised); }
+.drop.error { border-color: var(--warn); }
+.drop-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.drop-h b { font-family: var(--display); font-size: 19px; font-weight: 600; }
+.drop-h span { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+.drop-body { display: grid; place-items: center; align-content: center; gap: 10px; text-align: center; color: var(--ink-2); }
+.drop-body svg { width: 132px; height: auto; }
+.drop-body .big { font-size: 15px; color: var(--ink); font-weight: 500; }
+.drop-body .fname { font-family: var(--mono); font-size: 13px; color: var(--ink); word-break: break-all; }
+.facts { display: grid; grid-template-columns: auto auto; gap: 2px 14px; font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink-2); text-align: left; }
+.facts dt { color: var(--ink-3); }
+.facts dd { margin: 0; }
+.drop-foot { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.drop input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.drop .warnline { color: var(--warn); font-size: 12px; }
+.intake-go { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+.intake-go .btn { padding: 9px 18px; font-size: 14px; }
+.intake-note { font-size: 12px; color: var(--ink-3); text-align: center; max-width: 560px; }
+@media (max-width: 700px) { .drops { grid-template-columns: minmax(0, 1fr); } .drop { min-height: 230px; } }
+.mq-choice { display: grid; grid-template-columns: repeat(2, minmax(0, 220px)); gap: 14px; }
+.mq-btn { display: grid; gap: 4px; justify-items: center; padding: 22px 18px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--panel); }
+.mq-btn b { font-family: var(--display); font-size: 26px; font-weight: 600; }
+.mq-btn span { color: var(--ink-2); font-size: 13px; }
+.mq-btn:hover { border-color: var(--accent); }
+.mq-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.mq-chart { display: grid; gap: 14px; justify-items: center; width: min(760px, 100%); }
+.mq-hint { margin: 0; color: var(--ink-2); }
+.mq-arch { display: grid; gap: 6px; width: 100%; }
+.mq-arch-h { display: flex; justify-content: space-between; align-items: baseline; font-size: 11.5px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.mq-arch-h b { font-family: var(--display); font-size: 15px; color: var(--ink); text-transform: none; letter-spacing: 0; }
+.mq-row { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 4px; }
+.mq-cell { display: grid; gap: 2px; justify-items: center; padding: 8px 0 6px; border-radius: 6px; border: 1.5px solid transparent; color: var(--badge-ink); min-width: 0; }
+.mq-cell b { font-family: var(--mono); font-size: 14px; font-weight: 500; }
+.mq-cell small { font-size: 9.5px; opacity: 0.85; white-space: nowrap; overflow: hidden; max-width: 100%; }
+.mq-cell.k1 { background: var(--t-inc); } .mq-cell.k2 { background: var(--t-can); } .mq-cell.k3 { background: var(--t-pm); } .mq-cell.k4 { background: var(--t-mol); }
+.mq-cell:nth-child(7) { margin-right: 6px; }
+.mq-cell[aria-pressed="true"] { background: transparent; color: var(--ink-3); border: 1.5px dashed var(--ink-3); }
+.mq-cell[aria-pressed="true"] b { text-decoration: line-through; }
+.mq-cell:hover { outline: 2px solid var(--ink); outline-offset: 1px; }
+.wis { display: grid; gap: 10px; width: min(760px, 100%); border-top: 1px solid var(--line); padding-top: 18px; }
+.wis-h { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+.wis-h h2 { font-family: var(--display); font-size: 19px; font-weight: 600; margin: 0; }
+.wis-quick { display: flex; gap: 6px; }
+.wis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.wis-card { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.wis-card-h { display: flex; align-items: center; gap: 8px; }
+.wis-card-h .num { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--badge-ink); background: var(--t-mol); border-radius: 3px; padding: 1px 6px; }
+.wis-card-h span { font-size: 13px; }
+.wis-card .seg { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.wis-card.unanswered { border-style: dashed; }
+.wis-card .seg button { padding: 6px 4px; }
+@media (max-width: 520px) { .wis-grid { grid-template-columns: minmax(0, 1fr); } }
+.wis.wis-solo { border-top: 0; padding-top: 0; }
+.mq-sum { margin: 0; font-size: 13px; color: var(--ink-2); min-height: 1.4em; text-align: center; }
+@media (max-width: 640px) { .mq-row { grid-template-columns: repeat(7, minmax(0, 1fr)); } .mq-cell:nth-child(7) { margin-right: 0; } .mq-choice { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; } }
+
+/* standalone model builder */
+[hidden] { display: none !important; }
+body { margin: 0; }
+.app.mbapp { grid-template-columns: 320px minmax(0, 1fr); }
+.dropmsg { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--ink-2); font-size: 15px; pointer-events: none; z-index: 4; padding: 24px; }
+.dropmsg b { display: block; font-size: 18px; color: var(--ink); margin-bottom: 4px; }
+.stage.dragover { outline: 3px dashed var(--accent); outline-offset: -8px; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.7.6/build/index.module.js"
+} }
+</script>
+</head>
+<body>
+<div class="app model-step mbapp" id="app">
+  <header class="bar">
+    <div class="brand"><h1>Model Builder</h1><span id="modelName"></span></div>
+    <div class="group">
+      <span class="lbl">Arch</span>
+      <div class="seg" role="group" aria-label="Arch">
+        <button id="archUpper" aria-pressed="true">Maxilla</button>
+        <button id="archLower" aria-pressed="false">Mandible</button>
+      </div>
+    </div>
+    <div class="group"><label class="btn primary" for="fileIn" id="loadBtn">Load scan…</label><input type="file" id="fileIn" accept=".stl,.ply,.obj" hidden></div>
+  </header>
+
+  <aside class="panel lib" aria-label="Model builder">
+    <div class="panel-h"><h2 id="leftTitle">Model builder</h2><small id="leftSub">sizes in mm</small></div>
+    <div id="mb-panel" class="mbp">
+      <p class="hint" id="mb-lead" style="margin:0"></p>
+      <details id="mb-orientSec"><summary>1 · Orient to the cut plane</summary>
+        <div class="row-b"><button class="btn" id="mb-auto" disabled>Auto-orient</button><button class="btn" id="mb-flip" disabled>Invert</button><button class="btn" id="mb-rot" disabled>Rotate 90°</button></div>
+        <p class="sub">Teeth should point up and the gum side down, sitting on the blue plane. Auto-orient also shows a rotation sphere: drag the red, green or blue ring to tilt the model about X, Y or Z (hold Shift for 5° steps). The model drops back onto the plane when you let go.</p>
+        <label class="lab" for="mb-cut">Cut height <span class="v" id="mb-hv"></span></label>
+        <input type="range" id="mb-cut" min="0" max="100" step="0.1" value="0" disabled>
+        <p class="sub">Optional: raise the blue plane to remove everything below it, e.g. bulk material under the gums. Leave it at the bottom to keep everything. The plane stays on until you use another step.</p>
+      </details>
+      <details><summary>2 · Poly trim</summary>
+        <div class="row-b"><button class="btn" id="mb-drawBtn" disabled>Add polygon</button><button class="btn" id="mb-undoBtn" disabled>Undo</button><button class="btn" id="mb-clrBtn" disabled>Clear all</button></div>
+        <p class="sub">Click Add polygon, then left-click points around the area to remove (on the model or out in empty space). Right-click places the last point and deletes everything inside. While you add points, left-drag is switched off so clicks never move the model. Right-drag still rotates and scroll zooms; a right-click without dragging finishes the polygon. Repeat for more areas.</p>
+      </details>
+      <details><summary>3 · Smooth periphery</summary>
+        <button class="btn wide" id="mb-smBtn" disabled>Smooth periphery</button>
+        <label class="lab" for="mb-sm">Smoothness <span class="v" id="mb-smv"></span></label>
+        <input type="range" id="mb-sm" min="0.5" max="5" step="0.1" value="0.5" disabled>
+        <p class="sub">Evens out the rough trimmed edge the base is built from and removes stray bits. Use it after trimming, before generating the base.</p>
+      </details>
+      <details><summary>4 · Base</summary>
+        <p class="sub">Trim first, then click Generate base to preview the finished model.</p>
+        <button class="btn primary wide" id="mb-genBase" disabled>Generate base</button>
+        <label class="lab" for="mb-bt">Base thickness <span class="v" id="mb-bv"></span></label>
+        <input type="range" id="mb-bt" min="1" max="25" step="0.5" value="2" disabled>
+      </details>
+      <details><summary>5 · Hollow (honeycomb)</summary>
+        <button class="btn wide" id="mb-hlBtn" disabled>Hollow with honeycomb</button>
+        <button class="btn wide" id="mb-hlView" disabled>View underside</button>
+        <label class="lab" for="mb-hlT">Wall thickness <span class="v" id="mb-hlTv"></span></label>
+        <input type="range" id="mb-hlT" min="1" max="3" step="0.1" value="1.5" disabled>
+        <label class="lab" for="mb-hlC">Cell size <span class="v" id="mb-hlCv"></span></label>
+        <input type="range" id="mb-hlC" min="3" max="10" step="0.5" value="5" disabled>
+        <label class="lab" for="mb-hlR">Rib thickness <span class="v" id="mb-hlRv"></span></label>
+        <input type="range" id="mb-hlR" min="0.8" max="2.5" step="0.1" value="1.2" disabled>
+        <p class="sub">Opens the underside and fills the inside with honeycomb ribs so resin can drain. Turns the base on automatically. Turn the model over to see the honeycomb.</p>
+      </details>
+      <details><summary>6 · Engrave text</summary>
+        <label class="lab" for="mb-txIn">Text <span class="v" id="mb-txCnt"></span></label>
+        <input type="text" id="mb-txIn" class="txt" maxlength="40" placeholder="e.g. Smith J. 4821" disabled>
+        <label class="lab" for="mb-txS">Font size <span class="v" id="mb-txSv"></span></label>
+        <input type="range" id="mb-txS" min="8" max="12" step="1" value="10" disabled>
+        <label class="lab" for="mb-txD">Engraving depth <span class="v" id="mb-txDv"></span></label>
+        <input type="range" id="mb-txD" min="0.2" max="1" step="0.1" value="0.5" disabled>
+        <button class="btn wide" id="mb-txReset" disabled>Reset position</button>
+        <div id="mb-txMsg" class="sub"></div>
+        <p class="sub">Engraves the text into the outside wall of the base (the base turns on automatically). Press and drag on the base wall to move it: a cyan outline shows where it will go. Right-drag still rotates the view.</p>
+      </details>
+      <div class="mb-model"><div class="subh">Model</div><div id="mb-stats" class="sub">No model loaded.</div><div id="mb-msg" class="sub"></div></div>
+      <div class="mb-go">
+        <button class="btn primary wide" id="mb-done" disabled>Export STL</button>
+        <button class="btn wide" id="mb-reload">Load another scan…</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="stage-wrap" style="min-height:0;display:grid">
+    <div class="stage step-model" id="stage">
+      <div class="loading" id="loading">Loading 3D viewer…</div>
+      <div class="status" id="status"></div>
+      <div class="dropmsg" id="dropMsg"><div><b>Load a scan to start</b>Drop an STL, PLY or OBJ here, or use Load scan. Choose Maxilla or Mandible first.</div></div>
+      <div class="mbhint" id="mb-hint" data-def="Left-drag to pan · Right-drag to rotate · Scroll to zoom">Left-drag to pan · Right-drag to rotate · Scroll to zoom</div>
+      <button class="btn navb" id="mb-prev" hidden></button>
+      <button class="btn primary navb" id="mb-next" hidden></button>
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </div>
+  </main>
+</div>
+<script type="module">
+/* Model Builder: the model builder from the Attachment Planner, on its own.
+   Load an intraoral scan, orient it, trim, smooth the periphery, add a base, hollow it, engrave text, export STL. */
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+const V3 = THREE.Vector3;
+const $ = (s) => document.querySelector(s);
+let toastTimer = null;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2800); }
+
+/* ---------- 3D view (as in the planner) ---------- */
+const stage = $('#stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+stage.prepend(renderer.domElement);
+$('#loading').remove();
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, 1, 0.5, 3000);
+const TARGET = new V3(0, 0, 0);
+let viewDist = 160;
+camera.position.set(0, 18, viewDist);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.copy(TARGET);
+controls.enableDamping = true;
+controls.dampingFactor = 0.12;
+// Left drag pans, right drag rotates, wheel zooms. A left click without dragging still places or selects.
+controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+controls.screenSpacePanning = true;
+controls.zoomToCursor = true;
+renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+controls.minDistance = 15;
+controls.maxDistance = 600;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f93, 1.4));
+const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(40, 80, 120); scene.add(key);
+const fill = new THREE.DirectionalLight(0xffffff, 0.7); fill.position.set(-80, -40, 40); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 0.5); rim.position.set(0, 30, -120); scene.add(rim);
+// keep the key light attached to the camera so any side of the scan is lit
+camera.add(key); key.position.set(30, 40, 0); scene.add(camera);
+
+const MAT = {
+  scan: new THREE.MeshStandardMaterial({ color: 0xece5d8, roughness: 0.5, metalness: 0, side: THREE.DoubleSide }),
+  scanColor: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0, side: THREE.DoubleSide }),
+  att: new THREE.MeshStandardMaterial({ color: 0x3557d6, roughness: 0.35 }),
+  attSel: new THREE.MeshStandardMaterial({ color: 0xe08a00, roughness: 0.35, emissive: 0x6b3a00, emissiveIntensity: 0.25 }),
+  attWarn: new THREE.MeshStandardMaterial({ color: 0xd2491b, roughness: 0.35 }),
+  ghost: new THREE.MeshStandardMaterial({ color: 0x3557d6, roughness: 0.4, transparent: true, opacity: 0.55, depthWrite: false }),
+  ghostWarn: new THREE.MeshStandardMaterial({ color: 0xd2491b, roughness: 0.4, transparent: true, opacity: 0.6, depthWrite: false }),
+};
+
+function applyStageColor() {
+  const c = getComputedStyle(document.documentElement).getPropertyValue('--stage').trim() || '#dfe5e7';
+  scene.background = new THREE.Color(c);
+}
+applyStageColor();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyStageColor);
+new MutationObserver(applyStageColor).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+// the model builder draws into its own group; mbXform maps the loaded scan's frame to the builder's
+const mbRoot = new THREE.Group(); scene.add(mbRoot);
+const mbXform = new THREE.Matrix4();
+function resize() {
+  const r = stage.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / r.height; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage); resize();
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+
+/* ---------- reading scans and the planner's import orientation ---------- */
+function parseScan(file, buf) {
+  const ext = file.name.toLowerCase().split('.').pop();
+  let geo;
+  if (ext === 'stl') geo = new STLLoader().parse(buf);
+  else if (ext === 'ply') geo = new PLYLoader().parse(buf);
+  else if (ext === 'obj') {
+    const group = new OBJLoader().parse(new TextDecoder().decode(buf));
+    const parts = [];
+    group.traverse((o) => { if (o.isMesh) { const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); const p = new THREE.BufferGeometry(); p.setAttribute('position', g.attributes.position); parts.push(p); } });
+    if (!parts.length) throw new Error('empty');
+    geo = parts.length === 1 ? parts[0] : mergeGeometries(parts);
+  } else throw new Error('format');
+  if (!geo.attributes.position || geo.attributes.position.count < 3) throw new Error('empty');
+  for (const k of Object.keys(geo.attributes)) if (!['position', 'normal', 'color'].includes(k)) geo.deleteAttribute(k);
+  if (!geo.attributes.normal) geo.computeVertexNormals();
+  return geo;
+}
+function triCount(geo) { return (geo.index ? geo.index.count : geo.attributes.position.count) / 3; }
+
+
+function jacobiEigen(A) {
+  const a = A.map((r) => r.slice()), v = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  for (let sweep = 0; sweep < 60; sweep++) {
+    let off = a[0][1] ** 2 + a[0][2] ** 2 + a[1][2] ** 2;
+    if (off < 1e-14) break;
+    for (const [p, q] of [[0, 1], [0, 2], [1, 2]]) {
+      if (Math.abs(a[p][q]) < 1e-14) continue;
+      const th = (a[q][q] - a[p][p]) / (2 * a[p][q]);
+      const t = Math.sign(th || 1) / (Math.abs(th) + Math.sqrt(th * th + 1));
+      const c = 1 / Math.sqrt(t * t + 1), s = t * c;
+      for (let k = 0; k < 3; k++) { const akp = a[k][p], akq = a[k][q]; a[k][p] = c * akp - s * akq; a[k][q] = s * akp + c * akq; }
+      for (let k = 0; k < 3; k++) { const apk = a[p][k], aqk = a[q][k]; a[p][k] = c * apk - s * aqk; a[q][k] = s * apk + c * aqk; }
+      for (let k = 0; k < 3; k++) { const vkp = v[k][p], vkq = v[k][q]; v[k][p] = c * vkp - s * vkq; v[k][q] = s * vkp + c * vkq; }
+    }
+  }
+  return [0, 1, 2].map((i) => ({ val: a[i][i], vec: new V3(v[0][i], v[1][i], v[2][i]).normalize() })).sort((x, y) => y.val - x.val);
+}
+function areaNormal(geo) {
+  const p = geo.attributes.position, idx = geo.index, n = idx ? idx.count : p.count;
+  const a = new V3(), b = new V3(), c = new V3(), sum = new V3(), e1 = new V3(), e2 = new V3();
+  for (let i = 0; i < n; i += 3) {
+    a.fromBufferAttribute(p, idx ? idx.getX(i) : i); b.fromBufferAttribute(p, idx ? idx.getX(i + 1) : i + 1); c.fromBufferAttribute(p, idx ? idx.getX(i + 2) : i + 2);
+    sum.add(e1.subVectors(b, a).cross(e2.subVectors(c, a)));
+  }
+  return sum.multiplyScalar(0.5);
+}
+// principal axes of the scan: thinnest = occlusal-plane normal, widest = left-right; the open scan surface faces the
+// teeth (maxilla ends teeth-down, mandible teeth-up, as the planner keeps them), and the narrow end of the U is the front
+function orientLikePlanner(pos, arch) {
+  const n = pos.length / 3, step = Math.max(1, Math.floor(n / 30000)), pts = [];
+  for (let i = 0; i < n; i += step) pts.push(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
+  const m = pts.length / 3, mean = [0, 0, 0];
+  for (let i = 0; i < pts.length; i += 3) { mean[0] += pts[i] / m; mean[1] += pts[i + 1] / m; mean[2] += pts[i + 2] / m; }
+  const C = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (let i = 0; i < pts.length; i += 3) { const d = [pts[i] - mean[0], pts[i + 1] - mean[1], pts[i + 2] - mean[2]]; for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) C[r][c] += d[r] * d[c] / m; }
+  const eig = jacobiEigen(C);
+  let Y = eig[2].vec.clone(), Z = eig[1].vec.clone();
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  if (areaNormal(g).dot(Y) * (arch === 'lower' ? 1 : -1) < 0) Y.negate();
+  let X = new V3().crossVectors(Y, Z);
+  const zs = [], xs = [];
+  for (let i = 0; i < pts.length; i += 3) { const v = new V3(pts[i] - mean[0], pts[i + 1] - mean[1], pts[i + 2] - mean[2]); zs.push(v.dot(Z)); xs.push(v.dot(X)); }
+  const order = zs.map((z, i) => i).sort((i, j) => zs[i] - zs[j]), k = Math.max(5, Math.floor(order.length * 0.2));
+  const spread = (ids) => { const v = ids.map((i) => xs[i]); return Math.max(...v) - Math.min(...v); };
+  if (spread(order.slice(0, k)) < spread(order.slice(-k))) Z.negate();
+  X = new V3().crossVectors(Y, Z);
+  const out = new Float32Array(pos.length), v = new V3();
+  for (let i = 0; i < pos.length; i += 3) { v.set(pos[i] - mean[0], pos[i + 1] - mean[1], pos[i + 2] - mean[2]); out[i] = v.dot(X); out[i + 1] = v.dot(Y); out[i + 2] = v.dot(Z); }
+  return out;
+}
+function stlBinary(pos, name) {
+  const n = pos.length / 9;
+  const buf = new ArrayBuffer(84 + 50 * n);
+  const dv = new DataView(buf);
+  const head = new TextEncoder().encode((name || 'attachment planner').slice(0, 79));
+  new Uint8Array(buf, 0, head.length).set(head);
+  dv.setUint32(80, n, true);
+  let o = 84;
+  for (let t = 0; t < n; t++) {
+    const k = t * 9;
+    const ax = pos[k + 3] - pos[k], ay = pos[k + 4] - pos[k + 1], az = pos[k + 5] - pos[k + 2];
+    const bx = pos[k + 6] - pos[k], by = pos[k + 7] - pos[k + 1], bz = pos[k + 8] - pos[k + 2];
+    let nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+    const l = Math.hypot(nx, ny, nz) || 1;
+    dv.setFloat32(o, nx / l, true); dv.setFloat32(o + 4, ny / l, true); dv.setFloat32(o + 8, nz / l, true);
+    for (let q = 0; q < 9; q++) dv.setFloat32(o + 12 + q * 4, pos[k + q], true);
+    o += 50;
+  }
+  return new Uint8Array(buf);
+}
+
+/* ---------- the model builder (unchanged from the planner) ---------- */
+function createModelBuilder(MBactive) {
+const onCv=(t,f)=>cv.addEventListener(t,e=>{if(MBactive())f(e)});
+const $=id=>document.getElementById('mb-'+id);
+let hollowOn=false,hcInfo=null,planeOn=false,ext=[60,60],smoothOn=false,smInfo=null,hm=null,polys=[],cur=[],overlay=null,drawing=false,baseOn=false,src=null,res=null,mesh=null,hMin=0,hMax=1,tmr=null;
+// ---------- the planner's 3D view: same canvas, camera and controls; the builder draws into its own group ----------
+const cv=renderer.domElement,scene=mbRoot,cam=camera,ctl=controls;
+const curMat=()=>MAT.scan;
+const plane=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color:0x1e6fff,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false}));
+plane.rotation.x=-Math.PI/2;plane.visible=false;plane.add(new THREE.LineSegments(new THREE.EdgesGeometry(plane.geometry),new THREE.LineBasicMaterial({color:0x1e6fff})));scene.add(plane);
+// ---------- rotation sphere (fine-tune orientation) ----------
+let gizmoOn=false,gDrag=null;
+const gz=new THREE.Group(),gRings=[],gAxes=[new THREE.Vector3(1,0,0),new THREE.Vector3(0,1,0),new THREE.Vector3(0,0,1)],gCols=[0xff4d4d,0x3ecf5a,0x4d8dff],rcg=new THREE.Raycaster();
+for(let i=0;i<3;i++){const r=new THREE.Mesh(new THREE.TorusGeometry(1,.03,10,96),new THREE.MeshBasicMaterial({color:gCols[i],transparent:true,opacity:.9,depthTest:false}));
+ r.renderOrder=999;if(i===0)r.rotation.y=Math.PI/2;if(i===1)r.rotation.x=Math.PI/2;r.userData.axis=i;gz.add(r);gRings.push(r)}
+{const sp=new THREE.Mesh(new THREE.SphereGeometry(1,32,16),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.06,depthWrite:false}));sp.raycast=()=>{};gz.add(sp)}
+gz.visible=false;scene.add(gz);
+function updGizmo(){$('auto').textContent=gizmoOn&&src?'Hide rotation sphere':'Auto-orient';gz.visible=!!src&&gizmoOn&&!drawing;gz.position.set(0,hMax/2,0);gz.scale.setScalar(.5*Math.hypot(ext[0],ext[1],hMax)*1.08+2);if(!gz.visible&&!gDrag)ctl.enabled=true}
+function gRay(e){const b=cv.getBoundingClientRect();rcg.setFromCamera(new THREE.Vector2((e.clientX-b.left)/b.width*2-1,-((e.clientY-b.top)/b.height)*2+1),cam)}
+function gPick(e){if(!gz.visible)return null;gz.updateMatrixWorld(true);gRay(e);const h=rcg.intersectObjects(gRings,false)[0];return h?h.object:null}
+function gHit(e,a,c){gRay(e);const v=new THREE.Vector3();return rcg.ray.intersectPlane(new THREE.Plane().setFromNormalAndCoplanarPoint(a,c),v)?v.sub(c):null}
+onCv('pointermove',e=>{
+ if(gDrag){const v1=gHit(e,gDrag.a,gDrag.c);if(!v1||v1.length()<1e-6)return;
+  let ang=Math.atan2(gDrag.a.dot(gDrag.v0.clone().cross(v1)),gDrag.v0.dot(v1));if(e.shiftKey){const st=5*Math.PI/180;ang=Math.round(ang/st)*st}
+  const q=new THREE.Quaternion().setFromAxisAngle(gDrag.a,ang);gDrag.q=q;gDrag.deg=ang*180/Math.PI;
+  if(mesh){mesh.quaternion.copy(q);mesh.position.copy(gDrag.c).sub(gDrag.c.clone().applyQuaternion(q))}
+  $('msg').textContent='Rotating '+['X','Y','Z'][gDrag.o.userData.axis]+': '+gDrag.deg.toFixed(1)+'\u00b0';return}
+ if(!gz.visible)return;const o=gPick(e);ctl.enabled=!o;cv.style.cursor=o?'grab':'';
+ gRings.forEach(r=>r.material.opacity=!o?.9:(r===o?1:.45))});
+onCv('pointerdown',e=>{if(e.button!==0)return;const o=gPick(e);if(!o)return;
+ const a=gAxes[o.userData.axis],c=gz.position.clone(),v0=gHit(e,a,c);if(!v0||v0.length()<1e-6)return;
+ ctl.enabled=false;gDrag={a,c,v0,o,q:null,deg:0};cv.style.cursor='grabbing';try{cv.setPointerCapture(e.pointerId)}catch(_){}e.stopPropagation()});
+function gEnd(){if(!gDrag)return;const q=gDrag.q,deg=gDrag.deg;gDrag=null;ctl.enabled=true;cv.style.cursor='';$('msg').textContent='';
+ if(q&&Math.abs(deg)>.05)reorient(()=>applyQ(src,q));else if(mesh){mesh.quaternion.identity();mesh.position.set(0,0,0)}}
+onCv('pointerup',gEnd);onCv('pointercancel',gEnd);
+// ---------- STL parse ----------
+function parseSTL(buf){
+ const dv=new DataView(buf),n=buf.byteLength>=84?dv.getUint32(80,true):0;
+ if(buf.byteLength===84+n*50){const a=new Float32Array(n*9);let o=84;for(let i=0;i<n;i++){o+=12;for(let k=0;k<9;k++){a[i*9+k]=dv.getFloat32(o,true);o+=4}o+=2}return a}
+ const m=[...new TextDecoder().decode(buf).matchAll(/vertex\s+(\S+)\s+(\S+)\s+(\S+)/g)],a=new Float32Array(m.length*3);
+ m.forEach((x,i)=>{a[i*3]=+x[1];a[i*3+1]=+x[2];a[i*3+2]=+x[3]});return a}
+// ---------- orientation ----------
+function applyQ(a,q){if(a===src)mbXform.premultiply(new THREE.Matrix4().makeRotationFromQuaternion(q));const v=new THREE.Vector3();for(let i=0;i<a.length;i+=3){v.set(a[i],a[i+1],a[i+2]).applyQuaternion(q);a[i]=v.x;a[i+1]=v.y;a[i+2]=v.z}}
+function recenter(a){let x0=1e9,x1=-1e9,y0=1e9,z0=1e9,z1=-1e9,y1=-1e9;
+ for(let i=0;i<a.length;i+=3){x0=Math.min(x0,a[i]);x1=Math.max(x1,a[i]);y0=Math.min(y0,a[i+1]);y1=Math.max(y1,a[i+1]);z0=Math.min(z0,a[i+2]);z1=Math.max(z1,a[i+2])}
+ const cx=(x0+x1)/2,cz=(z0+z1)/2;if(a===src)mbXform.premultiply(new THREE.Matrix4().makeTranslation(-cx,-y0,-cz));for(let i=0;i<a.length;i+=3){a[i]-=cx;a[i+1]-=y0;a[i+2]-=cz}hMin=0;hMax=y1-y0;ext=[x1-x0,z1-z0]}
+function eig(c){const v=[[1,0,0],[0,1,0],[0,0,1]];
+ for(let s=0;s<30;s++)for(let p=0;p<2;p++)for(let q=p+1;q<3;q++){if(Math.abs(c[p][q])<1e-12)continue;
+  const th=(c[q][q]-c[p][p])/(2*c[p][q]),t=Math.sign(th||1)/(Math.abs(th)+Math.sqrt(th*th+1)),co=1/Math.sqrt(t*t+1),si=t*co;
+  for(let k=0;k<3;k++){const a=c[k][p],b=c[k][q];c[k][p]=co*a-si*b;c[k][q]=si*a+co*b}
+  for(let k=0;k<3;k++){const a=c[p][k],b=c[q][k];c[p][k]=co*a-si*b;c[q][k]=si*a+co*b}
+  for(let k=0;k<3;k++){const a=v[k][p],b=v[k][q];v[k][p]=co*a-si*b;v[k][q]=si*a+co*b}}
+ return{vals:[c[0][0],c[1][1],c[2][2]],v}}
+function autoOrient(){const n=src.length/3,m=[0,0,0];
+ for(let i=0;i<src.length;i+=3)for(let k=0;k<3;k++)m[k]+=src[i+k]/n;
+ const c=[[0,0,0],[0,0,0],[0,0,0]];
+ for(let i=0;i<src.length;i+=3){const d=[src[i]-m[0],src[i+1]-m[1],src[i+2]-m[2]];for(let p=0;p<3;p++)for(let q=0;q<3;q++)c[p][q]+=d[p]*d[q]/n}
+ const e=eig(c),j=e.vals.indexOf(Math.min(...e.vals)),ax=new THREE.Vector3(e.v[0][j],e.v[1][j],e.v[2][j]).normalize();
+ applyQ(src,new THREE.Quaternion().setFromUnitVectors(ax,new THREE.Vector3(0,1,0)));}
+// ---------- geometry: clip, weld, base ----------
+function clip(a,h){const out=[],n=a.length/9;
+ for(let i=0;i<n;i++){const o=i*9,d=[a[o+1]-h,a[o+4]-h,a[o+7]-h];
+  if(d[0]>=0&&d[1]>=0&&d[2]>=0){for(let k=0;k<9;k++)out.push(a[o+k]);continue}
+  if(d[0]<0&&d[1]<0&&d[2]<0)continue;
+  const P=[[a[o],a[o+1],a[o+2]],[a[o+3],a[o+4],a[o+5]],[a[o+6],a[o+7],a[o+8]]],poly=[];
+  for(let k=0;k<3;k++){const j=(k+1)%3;if(d[k]>=0)poly.push(P[k]);if((d[k]>=0)!==(d[j]>=0))poly.push(ix(P[k],P[j],h))}
+  for(let k=1;k<poly.length-1;k++)out.push(...poly[0],...poly[k],...poly[k+1])}
+ return out}
+function ix(p,q,h){const f=p[0]<q[0]||(p[0]===q[0]&&(p[2]<q[2]||(p[2]===q[2]&&p[1]<q[1])));
+ const a=f?p:q,b=f?q:p,t=(h-a[1])/(b[1]-a[1]);return[a[0]+t*(b[0]-a[0]),h,a[2]+t*(b[2]-a[2])]}
+function weld(a){const map=new Map(),pts=[],idx=new Int32Array(a.length/3);
+ for(let i=0;i<idx.length;i++){const x=a[i*3],y=a[i*3+1],z=a[i*3+2],k=Math.round(x*1e4)+','+Math.round(y*1e4)+','+Math.round(z*1e4);
+  let id=map.get(k);if(id===undefined){id=pts.length;map.set(k,id);pts.push([x,y,z])}idx[i]=id}
+ return{pts,idx}}
+// boundary loops traced by walking each vertex's fan of triangles, so edges that touch at a single
+// vertex (pinch points, common on raw scan rims) are followed correctly instead of breaking the loop
+function boundary(pts,idx){const N=pts.length,T=new Map(),bnd=[];
+ for(let t=0;t<idx.length;t+=3)if(idx[t]!==idx[t+1]&&idx[t+1]!==idx[t+2]&&idx[t]!==idx[t+2])for(let k=0;k<3;k++){const a=idx[t+k],b=idx[t+(k+1)%3];if(a===b)continue;const key=a*N+b;if(!T.has(key))T.set(key,t)}
+ for(const key of T.keys()){const u=Math.floor(key/N),v=key-u*N;if(!T.has(v*N+u))bnd.push(key)}
+ const after=(t,v)=>{for(let k=0;k<3;k++)if(idx[t+k]===v)return idx[t+(k+1)%3];return -1};
+ const nextOf=(u,v)=>{let t=T.get(u*N+v);for(let g=0;g<256;g++){const a=after(t,v);if(a<0)return -1;const tw=T.get(a*N+v);if(tw===undefined)return a;t=tw}return -1};
+ const used=new Set(),loops=[];
+ for(const key of bnd){if(used.has(key))continue;used.add(key);
+  const u0=Math.floor(key/N),v0=key-u0*N,L=[u0];let u=u0,v=v0,ok=false;
+  for(let s=0;s<=bnd.length;s++){const w=nextOf(u,v);if(w<0)break;
+   if(v===u0&&w===v0){ok=true;break}
+   const k2=v*N+w;if(used.has(k2))break;used.add(k2);L.push(v);u=v;v=w}
+  if(ok&&L.length>=3)loops.push(L)}
+ return{loops,bc:bnd.length}}
+function capLoop(L,pts,yb,out){const m=L.length,P=L.map(i=>[pts[i][0],pts[i][2]]);let ar=0;
+ for(let i=0;i<m;i++){const a=P[i],b=P[(i+1)%m];ar+=a[0]*b[1]-b[0]*a[1]}
+ const sg=ar>=0?-1:1,ids=[];for(let i=m-1;i>=0;i--)ids.push(i);
+ const cr=(a,b,c)=>(P[b][0]-P[a][0])*(P[c][1]-P[a][1])-(P[b][1]-P[a][1])*(P[c][0]-P[a][0]);
+ const em=(a,b,c)=>{for(const k of[a,b,c])out.push(P[k][0],yb,P[k][1])};
+ let i=0,fail=0;
+ while(ids.length>3){const n=ids.length;i%=n;const a=ids[(i+n-1)%n],b=ids[i],c=ids[(i+1)%n];let ok=cr(a,b,c)*sg>0;
+  if(ok)for(const j of ids){if(j===a||j===b||j===c)continue;if(cr(a,b,j)*sg>=0&&cr(b,c,j)*sg>=0&&cr(c,a,j)*sg>=0){ok=false;break}}
+  if(ok||fail>=n){em(a,b,c);ids.splice(i,1);fail=0}else{fail++;i++}}
+ em(ids[0],ids[1],ids[2])}
+// ---------- engraved text on the base wall ----------
+let txInfo=null,wallInfo=null;const txCache=new Map();
+function txRaster(str,pt){ // text -> black/white bitmap, 40 px per mm
+ const PPM=40,em=pt*.3528*PPM,c=document.createElement('canvas');let g=c.getContext('2d');
+ const font='bold '+em.toFixed(1)+'px Arial,Helvetica,sans-serif';g.font=font;
+ const pad=Math.ceil(em*.4),W=Math.ceil(g.measureText(str).width)+2*pad,H=Math.ceil(em*1.6)+2*pad;
+ c.width=W;c.height=H;g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);g.fillStyle='#000';g.font=font;g.textBaseline='middle';g.fillText(str,pad,H/2);
+ const d=g.getImageData(0,0,W,H).data,ink=new Uint8Array(W*H);for(let i=0;i<W*H;i++)ink[i]=d[i*4]<128?1:0;
+ return{W,H,ppm:PPM,ink}}
+// bitmap + summed-area table so any box of the text can be averaged in constant time
+function txImage(str,pt){const k=str+'|'+pt;if(txCache.has(k))return txCache.get(k);
+ const R=txRaster(str,pt),{W,H,ppm,ink}=R;let x0=1e9,x1=-1,y0=1e9,y1=-1;
+ const S=new Float64Array((W+1)*(H+1));
+ for(let y=0;y<H;y++){let row=0;for(let x=0;x<W;x++){const v=ink[y*W+x];if(v){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}row+=v;S[(y+1)*(W+1)+x+1]=S[y*(W+1)+x+1]+row}}
+ const I=x1<0?null:{W,H,ppm,S,cx:(x0+x1+1)/2,cy:(y0+y1+1)/2,w:(x1-x0+1)/ppm,h:(y1-y0+1)/ppm};
+ if(txCache.size>6)txCache.clear();txCache.set(k,I);return I}
+function txCov(I,u,w,half){ // share of ink in a small box at (u right, w up), in mm from the text centre
+ const px=I.cx+u*I.ppm,py=I.cy-w*I.ppm,h=half*I.ppm,W1=I.W+1,
+  x0=Math.max(0,Math.min(I.W,Math.round(px-h))),x1=Math.max(0,Math.min(I.W,Math.round(px+h))),y0=Math.max(0,Math.min(I.H,Math.round(py-h))),y1=Math.max(0,Math.min(I.H,Math.round(py+h)));
+ const a=(x1-x0)*(y1-y0);if(a<=0)return 0;
+ return(I.S[y1*W1+x1]-I.S[y0*W1+x1]-I.S[y1*W1+x0]+I.S[y0*W1+x0])/a}
+// geometry of the closed wall outline (L = loop of vertex ids)
+function wallGeom(L,pts){const n=L.length,P=L.map(i=>pts[i]),len=[],s=[0];
+ for(let i=0;i<n;i++){const a=P[i],b=P[(i+1)%n];len.push(Math.hypot(b[0]-a[0],b[2]-a[2]));s.push(s[i]+len[i])}
+ return{P,len,s,S:s[n],n}}
+function wallLocate(G,x,z){let bd=1e18,be=0,bt=0;
+ for(let i=0;i<G.n;i++){const a=G.P[i],b=G.P[(i+1)%G.n],ex=b[0]-a[0],ez=b[2]-a[2],l2=ex*ex+ez*ez,t=l2?Math.max(0,Math.min(1,((x-a[0])*ex+(z-a[2])*ez)/l2)):0,qx=a[0]+t*ex-x,qz=a[2]+t*ez-z,d=qx*qx+qz*qz;if(d<bd){bd=d;be=i;bt=t}}
+ return{e:be,t:bt,s:G.s[be]+bt*G.len[be]}}
+// vertices of the wall that cover [-lo,+hi] around the point at edge e / fraction t; u = distance along the wall from that point (moving along the wall = reading left to right from outside)
+function wallCols(G,e,t,lo,hi){const n=G.n,back=[],fwd=[];
+ let i=e,u=-t*G.len[e];back.push({i,u});
+ while(u>-lo&&back.length<=n){i=(i+n-1)%n;u-=G.len[i];back.push({i,u})}
+ i=(e+1)%n;u=(1-t)*G.len[e];fwd.push({i,u});
+ while(u<hi&&fwd.length<=n){u+=G.len[i];i=(i+1)%n;fwd.push({i,u})}
+ return back.reverse().concat(fwd)}
+// cut each listed model-boundary edge into short pieces so the engraving has fine columns to work with
+function wallSplit(out,edges){
+ const key=p=>Math.round(p[0]*1e4)+','+Math.round(p[1]*1e4)+','+Math.round(p[2]*1e4),mp=new Map();
+ let x0=1e18,x1=-1e18,z0=1e18,z1=-1e18;
+ for(const e of edges){mp.set(key(e.a)+'|'+key(e.b),e.m);for(const p of[e.a,e.b]){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[2]);z1=Math.max(z1,p[2])}}
+ x0-=1e-3;x1+=1e-3;z0-=1e-3;z1+=1e-3;
+ const no=[],emit=v=>{
+  for(let k=0;k<3;k++){const a=[v[k*3],v[k*3+1],v[k*3+2]],k2=(k+1)%3,b=[v[k2*3],v[k2*3+1],v[k2*3+2]],m=mp.get(key(a)+'|'+key(b));
+   if(m){const k3=(k+2)%3,c=[v[k3*3],v[k3*3+1],v[k3*3+2]],q=[a,...m,b];for(let j=0;j<q.length-1;j++)emit([...q[j],...q[j+1],...c]);return}}
+  for(let i=0;i<9;i++)no.push(v[i])};
+ for(let t=0;t<out.length;t+=9){
+  const ax=out[t],bx=out[t+3],cx=out[t+6],az=out[t+2],bz=out[t+5],cz=out[t+8];
+  if(Math.max(ax,bx,cx)<x0||Math.min(ax,bx,cx)>x1||Math.max(az,bz,cz)<z0||Math.min(az,bz,cz)>z1){for(let i=0;i<9;i++)no.push(out[t+i]);continue}
+  emit(out.slice(t,t+9))}
+ out.length=0;for(let i=0;i<no.length;i++)out.push(no[i])}
+const TX_GS=.1;
+// where the text goes: returns the pieces needed to split the model edge and (later) build the wall
+function txPlan(Tx,G,pos,T,yb,hcT){
+ const I=txImage(Tx.str,Tx.pt);if(!I)return{why:'nothing to engrave'};
+ const half=I.w/2,hh=I.h/2,m=.8,loc=wallLocate(G,pos.x,pos.z);
+ if(I.w+2*m>G.S*.8)return{why:'the text is longer than this wall'};
+ const cols=wallCols(G,loc.e,loc.t,half+m,half+m);
+ if(cols.length+2>G.n)return{why:'the text is longer than this wall'};
+ return{I,half,hh,loc,cols,depth:Math.min(Tx.depth,T*.4,hcT?hcT*.45:1e9),m}}
+// builds the wall triangles for the planned columns: a fine grid whose band rows are pushed inward where the letters are
+function txWallTris(pl,G,yb,v0){
+ const{I,hh,cols,depth}=pl,n=G.n,nc=cols.length,bh=hh+.4;let minTop=1e18;
+ for(const c of cols)minTop=Math.min(minTop,G.P[c.i][1]);
+ const lo=bh+.35,hi=minTop-yb-.35-bh;
+ if(hi<lo)return{why:'the wall is too short here for this text (make the base thicker or the text smaller)'};
+ const v=Math.max(lo,Math.min(hi,v0)),nb=Math.max(1,Math.ceil(2*bh/TX_GS)),lev=[];
+ for(let r=0;r<=nb;r++)lev.push(yb+v-bh+2*bh*r/nb);
+ const R=nb+3,en=[];
+ for(let i=0;i<n;i++){const a=G.P[i],b=G.P[(i+1)%n],l=G.len[i]||1;en.push([(b[2]-a[2])/l,-(b[0]-a[0])/l])} // inward normal of each edge
+ const grid=[];
+ for(let j=0;j<nc;j++){const i=cols[j].i,P=G.P[i],e0=en[(i+n-1)%n],e1=en[i];let nx=e0[0]+e1[0],nz=e0[1]+e1[1];const l=Math.hypot(nx,nz)||1;nx/=l;nz/=l;
+  const col=[[P[0],yb,P[2]]];
+  for(let r=0;r<=nb;r++){const y=lev[r],cv=txCov(I,cols[j].u,y-(yb+v),TX_GS/2),d=depth*Math.min(1,cv*1.15);col.push([P[0]+nx*d,y,P[2]+nz*d])}
+  col.push([P[0],P[1],P[2]]);grid.push(col)}
+ const tris=[],T=(a,b,c)=>tris.push(...a,...b,...c);
+ for(let j=0;j<nc-1;j++)for(let r=0;r<R-1;r++){const a=grid[j][r],b=grid[j+1][r],c=grid[j+1][r+1],d=grid[j][r+1];T(c,d,a);T(c,a,b)}
+ // the plain quads on either side get extra corners along the shared edge
+ {const ep=(cols[0].i+n-1)%n,A=G.P[ep],At=[A[0],A[1],A[2]],Ab=[A[0],yb,A[2]],ch=grid[0];
+  T(At,Ab,ch[0]);for(let r=0;r<R-1;r++)T(At,ch[r],ch[r+1])}
+ {const i=cols[nc-1].i,Bp=G.P[(i+1)%n],Bt=[Bp[0],Bp[1],Bp[2]],Bb=[Bp[0],yb,Bp[2]],ch=grid[nc-1];
+  for(let r=R-1;r>=1;r--)T(Bt,ch[r],ch[r-1]);T(Bt,ch[0],Bb)}
+ const skip=new Set([(cols[0].i+n-1)%n,cols[nc-1].i]);for(let j=0;j<nc-1;j++)skip.add(cols[j].i);
+ return{tris,skip,v}}
+
+// triangulates the rim minus the given outlines; leaves out any outline the triangulator cannot cut cleanly
+function floorFrom(flat,items){
+ const pa=f=>{let a=0;for(let i=0;i<f.length;i+=2){const j=(i+2)%f.length;a+=f[i]*f[j+1]-f[j]*f[i+1]}return Math.abs(a/2)};
+ for(let tries=0;tries<30&&items.length;tries++){
+  const R=tri2d([flat,...items.map(c=>c.flat)]);let want=pa(flat),got=0;for(const c of items)want-=pa(c.flat);
+  for(let i=0;i<R.tris.length;i+=3){const p=R.tris[i],q=R.tris[i+1],r=R.tris[i+2];got+=((R.X[q]-R.X[p])*(R.Z[r]-R.Z[p])-(R.Z[q]-R.Z[p])*(R.X[r]-R.X[p]))/2}
+  const bad=new Set();for(const v of R.stray||[]){let r=0;while(r+2<R.starts.length&&v>=R.starts[r+1])r++;if(r>0)bad.add(r-1)}
+  // a few points left over on the outer edge (tiny kinks in a raw scan rim) are harmless when the area adds up
+  if(R.tris.length&&Math.abs(got-want)<=.002*want&&(R.ok||!bad.size||(R.stray||[]).length<=8))return{bot:R,items};
+  if(!bad.size)break;items=items.filter((c,i)=>!bad.has(i))}
+ return{bot:null,items}}
+function addBase(out,T,Hc,Tx){
+ hcInfo=null;txInfo=null;wallInfo=null;
+ let W=weld(Float32Array.from(out)),B=boundary(W.pts,W.idx),n=0,ym=1e9;
+ for(let i=1;i<out.length;i+=3)if(out[i]<ym)ym=out[i];
+ const yb=ym-T,big=()=>{if(!B.loops.length)return null;const ar=L=>{let s=0;for(let i=0;i<L.length;i++){const a=W.pts[L[i]],b=W.pts[L[(i+1)%L.length]];s+=a[0]*b[2]-b[0]*a[2]}return Math.abs(s)};return B.loops.reduce((p,c)=>ar(c)>ar(p)?c:p)};
+ let L=big(),pos=null;
+ if(L&&Tx&&Tx.str){ // fine columns on the model's edge where the text goes, so the engraving can be detailed
+  const G0=wallGeom(L,W.pts);
+  pos=Tx.pos||(()=>{let bi=0,bv=-1e18;for(let i=0;i<G0.n;i++){const v=G0.P[i][0]*.54+G0.P[i][2]*.84;if(v>bv){bv=v;bi=i}}return{x:G0.P[bi][0],z:G0.P[bi][2],v:T/2}})();
+  const p0=txPlan(Tx,G0,pos,T,yb,Hc&&Hc.t);
+  if(p0.why)txInfo={why:p0.why};
+  else{const ed=[];for(let k=0;k<p0.cols.length-1;k++){const ia=p0.cols[k].i,a=G0.P[ia],b=G0.P[(ia+1)%G0.n],kk=Math.ceil(G0.len[ia]/TX_GS-.2);
+    if(kk>1){const mm=[];for(let j=1;j<kk;j++){const f=j/kk;mm.push([a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f])}ed.push({a,b,m:mm})}}
+   if(ed.length){wallSplit(out,ed);W=weld(Float32Array.from(out));B=boundary(W.pts,W.idx);L=big()}}}
+ const LS=L?[L]:[];let tw=null;
+ if(L){const G=wallGeom(L,W.pts);
+  if(Tx&&Tx.str){
+   if(!txInfo){const pl=txPlan(Tx,G,pos,T,yb,Hc&&Hc.t);
+    if(pl.why)txInfo={why:pl.why};
+    else{tw=txWallTris(pl,G,yb,pos.v);if(tw.why){txInfo={why:tw.why};tw=null}else txInfo={ok:1,depth:pl.depth}}}
+   const I=txImage(Tx.str,Tx.pt);
+   wallInfo={P:G.P,yb,cx:pos.x,cz:pos.z,v:tw?tw.v:pos.v,half:I?I.w/2:0,hh:I?I.h/2:0}}
+  else wallInfo={P:G.P,yb,cx:0,cz:0,v:T/2,half:0,hh:0}}
+ for(const L of LS){
+  const flat=[];for(const i of L)flat.push(W.pts[i][0],W.pts[i][2]);
+  let hcc=null,bot=null,used=[];
+  if(Hc){try{hcc=honeycomb(out,flat,{t:Hc.t,cell:Hc.cell,rib:Hc.rib,yb}).cells;if(!hcc.length){hcInfo={why:'model too thin for the wall thickness'};hcc=null}}catch(e){hcInfo={why:'error'};hcc=null}}
+  if(hcc){const first=hcc.length,F=floorFrom(flat,hcc);
+   if(F.bot&&F.items.length){bot=F.bot;used=F.items;hcInfo={cells:used.length,dropped:first-used.length,voidVol:used.reduce((a,c)=>a+c.vol,0),voidTris:used.reduce((a,c)=>a+c.tri.length,0)}}
+   else hcInfo={why:'outline too irregular'}}
+  for(let k=0;k<L.length;k++){if(tw&&tw.skip.has(k))continue;const A=W.pts[L[k]],Bp=W.pts[L[(k+1)%L.length]];
+   out.push(...Bp,...A,A[0],yb,A[2],...Bp,A[0],yb,A[2],Bp[0],yb,Bp[2])}
+  if(tw)for(let i=0;i<tw.tris.length;i++)out.push(tw.tris[i]);
+  if(bot){for(let i=0;i<bot.tris.length;i+=3)for(let k=0;k<3;k++){const v=bot.tris[i+k];out.push(bot.X[v],yb,bot.Z[v])}
+   for(const c of used)for(let i=0;i<c.tri.length;i++)out.push(c.tri[i])}
+  else{const F=tri2d([flat]);if(F.ok&&F.tris.length){for(let i=0;i<F.tris.length;i+=3)for(let k=0;k<3;k++){const v=F.tris[i+k];out.push(F.X[v],yb,F.Z[v])}}else capLoop(L,W.pts,yb,out)}n++}
+ if(n)sealSlivers(out);   // seal any sliver the floor left at a kink in the rim
+ return n}
+// closes small gaps by following open edges directly (works where the rim touches itself at a point)
+function sealSlivers(out,maxPerim=15){const W=weld(Float32Array.from(out)),idx=W.idx,N=W.pts.length,E=new Set(),nx=new Map();
+ for(let t=0;t<idx.length;t+=3)if(idx[t]!==idx[t+1]&&idx[t+1]!==idx[t+2]&&idx[t]!==idx[t+2])for(let k=0;k<3;k++)E.add(idx[t+k]*N+idx[t+(k+1)%3]);
+ for(const key of E){const u=Math.floor(key/N),v=key-u*N;if(!E.has(v*N+u)){if(!nx.has(u))nx.set(u,[]);nx.get(u).push(v)}}
+ if(!nx.size)return;const P=W.pts,d=(a,b)=>Math.hypot(P[a][0]-P[b][0],P[a][1]-P[b][1],P[a][2]-P[b][2]);
+ for(const u0 of[...nx.keys()]){
+  while(nx.get(u0)&&nx.get(u0).length){const L=[u0];let u=u0,per=0,ok=false;
+   for(let g=0;g<64;g++){const o=nx.get(u);if(!o||!o.length){if(L.length>=3&&E.has(u*N+u0)){per+=d(u,u0);ok=true}break}const j=L.length>=2?o.indexOf(u0):-1,v=j>=0?o.splice(j,1)[0]:o.pop();per+=d(u,v);if(v===u0){ok=true;break}L.push(v);u=v}
+   if(!ok||L.length<3||per>maxPerim)continue;const m=L.length,c=[0,0,0];for(const v of L)for(let q=0;q<3;q++)c[q]+=P[v][q]/m;
+   for(let i=0;i<m;i++){const A=P[L[(i+1)%m]],B=P[L[i]];out.push(A[0],A[1],A[2],B[0],B[1],B[2],c[0],c[1],c[2])}}}}
+function openEdges(a){const W=weld(a);return boundary(W.pts,W.idx).bc}
+// close the small gaps a scan leaves near its rim (and any the smoothing leaves), keeping the outer rim open:
+// every loop but the longest, up to maxPerim mm around, is closed with a fan to its centre. Adds triangles to out.
+function fillHoles(out,maxPerim=20,maxRad=4){if(out.length<9)return out;
+ const W=weld(Float32Array.from(out)),B=boundary(W.pts,W.idx);if(B.loops.length<2)return out;
+ const per=B.loops.map(L=>{let s=0;for(let i=0;i<L.length;i++){const a=W.pts[L[i]],b=W.pts[L[(i+1)%L.length]];s+=Math.hypot(b[0]-a[0],b[1]-a[1],b[2]-a[2])}return s});
+ let rim=0;per.forEach((p,i)=>{if(p>per[rim])rim=i});
+ // a loop that passes a pinch vertex twice is split there into simple loops, each closed on its own
+ const simple=L=>{const at=new Map(),st=[],res=[];
+  for(const v of L){if(at.has(v)){const k=at.get(v),sub=st.splice(k+1);for(const u of sub)at.delete(u);if(sub.length>=2)res.push([v,...sub])}else{at.set(v,st.length);st.push(v)}}
+  if(st.length>=3)res.push(st);return res};
+ B.loops.forEach((L0,k)=>{if(k===rim||per[k]>maxPerim)return;
+  for(const L of simple(L0)){const m=L.length,c=[0,0,0];
+   for(const v of L)for(let q=0;q<3;q++)c[q]+=W.pts[v][q]/m;
+   let rad=0;for(const v of L)rad=Math.max(rad,Math.hypot(W.pts[v][0]-c[0],W.pts[v][2]-c[2]));
+   if(rad>maxRad)continue;   // a real opening, not a scan gap: never cover it with a flat patch
+   for(let i=0;i<m;i++){const a=W.pts[L[(i+1)%m]],b=W.pts[L[i]];out.push(a[0],a[1],a[2],b[0],b[1],b[2],c[0],c[1],c[2])}}});
+ return out}
+
+// ---------- smooth periphery ----------
+function smoothPeriphery(out,S){
+ smInfo={loops:0,removed:0};
+ const W=weld(Float32Array.from(out)),pts=W.pts,N=pts.length,idx=W.idx,T=idx.length/3,alive=new Uint8Array(T).fill(1);
+ // 1) clean the cut edge so it can be traced as simple loops: remove spikes and ears (triangles with 2+ free
+ //    edges) and pinch points (vertices where pieces of surface touch at a single corner: keep the biggest fan)
+ for(let pass=0;pass<12;pass++){const E=new Set();
+  for(let t=0;t<T;t++)if(alive[t])for(let k=0;k<3;k++)E.add(idx[t*3+k]*N+idx[t*3+(k+1)%3]);
+  const bout=new Uint8Array(N);let kill=0;
+  for(let t=0;t<T;t++){if(!alive[t])continue;let f=0;
+   for(let k=0;k<3;k++)if(!E.has(idx[t*3+(k+1)%3]*N+idx[t*3+k])){f++;const v=idx[t*3+k];if(bout[v]<255)bout[v]++}
+   if(f>=2){alive[t]=0;kill++}}
+  const fans=new Map();
+  for(let t=0;t<T;t++)if(alive[t])for(let k=0;k<3;k++){const v=idx[t*3+k];if(bout[v]>1){let l=fans.get(v);if(!l)fans.set(v,l=[]);l.push(t)}}
+  for(const [v,L] of fans){const m=L.length,pr=L.map((_,i)=>i),f=i=>{while(pr[i]!==i){pr[i]=pr[pr[i]];i=pr[i]}return i};
+   const by=new Map();
+   for(let i=0;i<m;i++){const t=L[i];if(!alive[t])continue;for(let k=0;k<3;k++){const u=idx[t*3+k];if(u===v)continue;const j=by.get(u);if(j===undefined)by.set(u,i);else{const x=f(i),y=f(j);if(x!==y)pr[x]=y}}}
+   const sz=new Map();for(let i=0;i<m;i++)if(alive[L[i]]){const r=f(i);sz.set(r,(sz.get(r)||0)+1)}
+   if(sz.size<2)continue;let best=-1,bn=-1;for(const [r,c] of sz)if(c>bn){bn=c;best=r}
+   for(let i=0;i<m;i++)if(alive[L[i]]&&f(i)!==best){alive[L[i]]=0;kill++}}
+  smInfo.removed+=kill;if(!kill)break}
+ // 2) drop small floating islands
+ const par=new Int32Array(N);for(let i=0;i<N;i++)par[i]=i;
+ const fd=x=>{while(par[x]!==x){par[x]=par[par[x]];x=par[x]}return x};
+ for(let t=0;t<T;t++)if(alive[t]){const a=fd(idx[t*3]),b=fd(idx[t*3+1]);if(b!==a)par[b]=a;const c=fd(idx[t*3+2]);if(c!==a)par[c]=a}
+ const cnt=new Map();let mx=0;
+ for(let t=0;t<T;t++)if(alive[t]){const r=fd(idx[t*3]),c=(cnt.get(r)||0)+1;cnt.set(r,c);if(c>mx)mx=c}
+ for(let t=0;t<T;t++)if(alive[t]&&cnt.get(fd(idx[t*3]))<mx*.05){alive[t]=0;smInfo.removed++}
+ const ti=[];for(let t=0;t<T;t++)if(alive[t])ti.push(idx[t*3],idx[t*3+1],idx[t*3+2]);
+ const live=Int32Array.from(ti);if(!live.length)return [];
+ // 3) boundary loops, 4) smooth each loop in physical units
+ const B=boundary(pts,live),X=new Float64Array(N*3),D=new Float64Array(N*3);
+ for(let i=0;i<N;i++){X[i*3]=pts[i][0];X[i*3+1]=pts[i][1];X[i*3+2]=pts[i][2]}
+ const src=[];let hs=0,hn=0;
+ // smooth each rim loop with a Gaussian along its length (sigma = S mm): the same strength whatever the scan's point spacing
+ for(const L of B.loops){const m=L.length;if(m<4)continue;
+  const seg=new Float64Array(m);let len=0;
+  for(let i=0;i<m;i++){const a=L[i]*3,b=L[(i+1)%m]*3;seg[i]=Math.hypot(X[b]-X[a],X[b+1]-X[a+1],X[b+2]-X[a+2]);len+=seg[i]}
+  hs+=len;hn+=m;
+  const sig=Math.max(1e-6,Math.min(S,len/6)),win=3*sig,inv=1/(2*sig*sig);
+  for(let i=0;i<m;i++){const o=L[i]*3;let wt=(seg[i]+seg[(i+m-1)%m])/2+1e-9,sx=X[o]*wt,sy=X[o+1]*wt,sz=X[o+2]*wt,W=wt;
+   for(const dir of[1,-1]){let d=0,j=i;
+    for(let n=1;n<m;n++){d+=dir>0?seg[j]:seg[(j+m-1)%m];j=(j+dir+m)%m;if(d>win)break;
+     const q=L[j]*3,g=Math.exp(-d*d*inv)*((seg[j]+seg[(j+m-1)%m])/2+1e-9);sx+=X[q]*g;sy+=X[q+1]*g;sz+=X[q+2]*g;W+=g}}
+   D[o]=sx/W-X[o];D[o+1]=sy/W-X[o+1];D[o+2]=sz/W-X[o+2]}
+  src.push(...L);smInfo.loops++}
+ // 5) spread the movement into nearby surface so triangles stay well shaped
+ if(src.length){const hAvg=hs/hn,R=Math.min(800,Math.max(2,Math.ceil(1.5*S/hAvg)));
+  const dg=new Int32Array(N+1);
+  for(let i=0;i<live.length;i++)dg[live[i]+1]+=2;
+  for(let i=0;i<N;i++)dg[i+1]+=dg[i];
+  const fill=dg.slice(0,N),nb=new Int32Array(dg[N]);
+  for(let i=0;i<live.length;i+=3){const a=live[i],b=live[i+1],c=live[i+2];
+   nb[fill[a]++]=b;nb[fill[a]++]=c;nb[fill[b]++]=a;nb[fill[b]++]=c;nb[fill[c]++]=a;nb[fill[c]++]=b}
+  const lvl=new Int16Array(N).fill(-1),acc=new Float64Array(N*3),an=new Int32Array(N);
+  let fr=Array.from(new Set(src));fr.forEach(v=>lvl[v]=0);
+  for(let k=1;k<=R&&fr.length;k++){const nxt=[];
+   for(const v of fr)for(let e=dg[v];e<dg[v+1];e++){const w=nb[e];
+    if(lvl[w]===-1){lvl[w]=k;nxt.push(w)}
+    if(lvl[w]===k){acc[w*3]+=D[v*3];acc[w*3+1]+=D[v*3+1];acc[w*3+2]+=D[v*3+2];an[w]++}}
+   const f=(R+1-k)/(R+2-k);
+   for(const w of nxt)for(let c=0;c<3;c++)D[w*3+c]=acc[w*3+c]/an[w]*f;
+   fr=nxt}}
+ // drop any triangle the smoothing folded over or squashed flat (where a narrow tongue of scan was pulled back)
+ const o=[];let folded=0;
+ for(let i=0;i<live.length;i+=3){const P=[],Q=[];
+  for(let k=0;k<3;k++){const v=live[i+k]*3;P.push([X[v],X[v+1],X[v+2]]);Q.push([X[v]+D[v],X[v+1]+D[v+1],X[v+2]+D[v+2]])}
+  const nrm=A=>{const ux=A[1][0]-A[0][0],uy=A[1][1]-A[0][1],uz=A[1][2]-A[0][2],vx=A[2][0]-A[0][0],vy=A[2][1]-A[0][1],vz=A[2][2]-A[0][2];return[uy*vz-uz*vy,uz*vx-ux*vz,ux*vy-uy*vx]};
+  const a=nrm(P),b=nrm(Q),la=Math.hypot(...a),lb=Math.hypot(...b);
+  if(lb<la*.02||a[0]*b[0]+a[1]*b[1]+a[2]*b[2]<.3*la*lb){folded++;continue}
+  for(const q of Q)o.push(q[0],q[1],q[2])}
+ smInfo.removed+=folded;
+ return o}
+// ---------- honeycomb hollowing ----------
+// polygon-with-holes triangulator (ear clipping with hole bridging, after mapbox/earcut, using a grid instead of z-order)
+function tri2d(rings){
+ const X=[],Z=[],hs=[];
+ for(const r of rings){hs.push(X.length);for(let i=0;i<r.length;i+=2){X.push(r[i]);Z.push(r[i+1])}}
+ hs.push(X.length);
+ // work in a rotated frame so grid-aligned geometry never produces exact ties inside the algorithm; indices are unchanged
+ const ca=Math.cos(.6283),sa=Math.sin(.6283),PX=X.map((x,i)=>x*ca-Z[i]*sa),PZ=X.map((x,i)=>x*sa+Z[i]*ca);
+ class Nd{constructor(i,x,z){this.i=i;this.x=x;this.z=z;this.prev=null;this.next=null;this.removed=false;this.steiner=false}}
+ const tris=[];let gr=null;
+ const area=(p,q,r)=>(q.z-p.z)*(r.x-q.x)-(q.x-p.x)*(r.z-q.z),eq=(a,b)=>a.x===b.x&&a.z===b.z;
+ const sgn=v=>v>0?1:v<0?-1:0;
+ const signedArea=(s,e)=>{let a=0;for(let i=s,j=e-1;i<e;j=i++)a+=(PX[j]-PX[i])*(PZ[i]+PZ[j]);return a};
+ const insertNode=(i,x,z,last)=>{const p=new Nd(i,x,z);if(!last){p.prev=p;p.next=p}else{p.next=last.next;p.prev=last;last.next.prev=p;last.next=p}return p};
+ const removeNode=p=>{p.next.prev=p.prev;p.prev.next=p.next;p.removed=true};
+ const linkedList=(s,e,cw)=>{let last=null;
+  if(cw===(signedArea(s,e)>0)){for(let i=s;i<e;i++)last=insertNode(i,PX[i],PZ[i],last)}else{for(let i=e-1;i>=s;i--)last=insertNode(i,PX[i],PZ[i],last)}
+  if(last&&eq(last,last.next)){removeNode(last);last=last.next}return last};
+ const filterPoints=(start,end)=>{if(!start)return start;if(!end)end=start;let p=start,again;
+  do{again=false;if(!p.steiner&&(eq(p,p.next)||area(p.prev,p,p.next)===0)){removeNode(p);p=end=p.prev;if(p===p.next)break;again=true}else p=p.next}while(again||p!==end);return end};
+ const pit=(ax,az,bx,bz,cx,cz,px,pz)=>(cx-px)*(az-pz)>=(ax-px)*(cz-pz)&&(ax-px)*(bz-pz)>=(bx-px)*(az-pz)&&(bx-px)*(cz-pz)>=(cx-px)*(bz-pz);
+ const gAdd=nd=>{if(!gr)return;const k=Math.floor((nd.z-gr.z0)/gr.cs)*gr.nx+Math.floor((nd.x-gr.x0)/gr.cs);(gr.c[k]||(gr.c[k]=[])).push(nd)};
+ const isEar=ear=>{const a=ear.prev,b=ear,c=ear.next;if(area(a,b,c)>=0)return false;
+  const x0=Math.min(a.x,b.x,c.x),x1=Math.max(a.x,b.x,c.x),z0=Math.min(a.z,b.z,c.z),z1=Math.max(a.z,b.z,c.z);
+  const i0=Math.max(0,Math.floor((x0-gr.x0)/gr.cs)),i1=Math.min(gr.nx-1,Math.floor((x1-gr.x0)/gr.cs)),j0=Math.max(0,Math.floor((z0-gr.z0)/gr.cs)),j1=Math.min(gr.nz-1,Math.floor((z1-gr.z0)/gr.cs));
+  for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){const cl=gr.c[j*gr.nx+i];if(!cl)continue;
+   for(const p of cl){if(p.removed||p===a||p===b||p===c)continue;
+    if(p.x>=x0&&p.x<=x1&&p.z>=z0&&p.z<=z1&&pit(a.x,a.z,b.x,b.z,c.x,c.z,p.x,p.z)&&area(p.prev,p,p.next)>=0)return false}}
+  return true};
+ const onSeg=(p,q,r)=>q.x<=Math.max(p.x,r.x)&&q.x>=Math.min(p.x,r.x)&&q.z<=Math.max(p.z,r.z)&&q.z>=Math.min(p.z,r.z);
+ const inter=(p1,q1,p2,q2)=>{const o1=sgn(area(p1,q1,p2)),o2=sgn(area(p1,q1,q2)),o3=sgn(area(p2,q2,p1)),o4=sgn(area(p2,q2,q1));
+  if(o1!==o2&&o3!==o4)return true;if(o1===0&&onSeg(p1,p2,q1))return true;if(o2===0&&onSeg(p1,q2,q1))return true;if(o3===0&&onSeg(p2,p1,q2))return true;if(o4===0&&onSeg(p2,q1,q2))return true;return false};
+ const interPoly=(a,b)=>{let p=a;do{if(p.i!==a.i&&p.next.i!==a.i&&p.i!==b.i&&p.next.i!==b.i&&inter(p,p.next,a,b))return true;p=p.next}while(p!==a);return false};
+ const locIn=(a,b)=>area(a.prev,a,a.next)<0?area(a,b,a.next)>=0&&area(a,a.prev,b)>=0:area(a,b,a.prev)<0||area(a,a.next,b)<0;
+ const midIn=(a,b)=>{let p=a,ins=false;const px=(a.x+b.x)/2,pz=(a.z+b.z)/2;
+  do{if(((p.z>pz)!==(p.next.z>pz))&&p.next.z!==p.z&&(px<(p.next.x-p.x)*(pz-p.z)/(p.next.z-p.z)+p.x))ins=!ins;p=p.next}while(p!==a);return ins};
+ const validDiag=(a,b)=>a.next.i!==b.i&&a.prev.i!==b.i&&!interPoly(a,b)&&(locIn(a,b)&&locIn(b,a)&&midIn(a,b)&&(area(a.prev,a,b.prev)||area(a,b.prev,b))||eq(a,b)&&area(a.prev,a,a.next)>0&&area(b.prev,b,b.next)>0);
+ const split=(a,b)=>{const a2=new Nd(a.i,a.x,a.z),b2=new Nd(b.i,b.x,b.z),an=a.next,bp=b.prev;a.next=b;b.prev=a;a2.next=an;an.prev=a2;b2.next=a2;a2.prev=b2;bp.next=b2;b2.prev=bp;gAdd(a2);gAdd(b2);return b2};
+ const cure=(start)=>{let p=start;do{const a=p.prev,b=p.next.next;
+   if(!eq(a,b)&&inter(a,p,p.next,b)&&locIn(a,b)&&locIn(b,a)){tris.push(a.i,p.i,b.i);removeNode(p);removeNode(p.next);p=start=b}p=p.next}while(p!==start);return filterPoints(p)};
+ const splitEar=start=>{let a=start;do{let b=a.next.next;while(b!==a.prev){if(a.i!==b.i&&validDiag(a,b)){let c=split(a,b);a=filterPoints(a,a.next);c=filterPoints(c,c.next);earLoop(a,0);earLoop(c,0);return}b=b.next}a=a.next}while(a!==start)};
+ function earLoop(ear,pass){if(!ear)return;let stop=ear,prev,next;
+  while(ear.prev!==ear.next){prev=ear.prev;next=ear.next;
+   if(isEar(ear)){tris.push(prev.i,ear.i,next.i);removeNode(ear);ear=next.next;stop=next.next;continue}
+   ear=next;
+   if(ear===stop){if(!pass)earLoop(filterPoints(ear),1);else if(pass===1){ear=cure(filterPoints(ear));earLoop(ear,2)}else if(pass===2)splitEar(ear);break}}}
+ const sector=(m,p)=>area(m.prev,m,p.prev)<0&&area(p.next,m,m.next)<0;
+ const bridge=(hole,outer)=>{let p=outer,hx=hole.x,hz=hole.z,qx=-Infinity,m=null;
+  do{if(hz<=p.z&&hz>=p.next.z&&p.next.z!==p.z){const x=p.x+(hz-p.z)*(p.next.x-p.x)/(p.next.z-p.z);if(x<=hx&&x>qx){qx=x;m=p.x<p.next.x?p:p.next;if(x===hx)return m}}p=p.next}while(p!==outer);
+  if(!m)return null;const stop=m,mx=m.x,mz=m.z;let tm=Infinity,tn;p=m;
+  do{if(hx>=p.x&&p.x>=mx&&hx!==p.x&&pit(hz<mz?hx:qx,hz,mx,mz,hz<mz?qx:hx,hz,p.x,p.z)){tn=Math.abs(hz-p.z)/(hx-p.x);
+     if(locIn(p,hole)&&(tn<tm||(tn===tm&&(p.x>m.x||(p.x===m.x&&sector(m,p)))))){m=p;tm=tn}}p=p.next}while(p!==stop);
+  return m};
+ // the outer rim often has long straight runs of collinear vertices (flat cuts); leave them out here and stitch them back afterwards
+ let outer;
+ {const m=hs[1],keep=[];for(let i=0;i<m;i++){const p=(i+m-1)%m,q=(i+1)%m,ex=PX[i]-PX[p],ez=PZ[i]-PZ[p],fx=PX[q]-PX[i],fz=PZ[q]-PZ[i],l=Math.hypot(ex,ez)*Math.hypot(fx,fz);
+   if(!(l>0)||Math.abs(ex*fz-ez*fx)>1e-9*l||ex*fx+ez*fz<0)keep.push(i)}
+  const sa=(()=>{let a=0;for(let k=0,j=keep.length-1;k<keep.length;j=k++)a+=(PX[keep[j]]-PX[keep[k]])*(PZ[keep[k]]+PZ[keep[j]]);return a})();
+  let last=null;
+  if(keep.length>=3){if(sa>0){for(const i of keep)last=insertNode(i,PX[i],PZ[i],last)}else{for(let k=keep.length-1;k>=0;k--)last=insertNode(keep[k],PX[keep[k]],PZ[keep[k]],last)}}
+  if(last&&eq(last,last.next)){removeNode(last);last=last.next}
+  outer=last}
+ if(!outer||outer.next===outer.prev)return{X,Z,tris,ok:false};
+ const q=[];
+ for(let k=1;k<rings.length;k++){const l=linkedList(hs[k],hs[k+1],false);if(!l)continue;if(l===l.next)l.steiner=true;
+  let lm=l,p=l.next;while(p!==l){if(p.x<lm.x||(p.x===lm.x&&p.z<lm.z))lm=p;p=p.next}q.push(lm)}
+ q.sort((a,b)=>a.x-b.x);
+ for(const h of q){const b=bridge(h,outer);if(!b)continue;const br=split(b,h);filterPoints(br,br.next);outer=filterPoints(b,b.next)}
+ // spatial grid of every live node
+ let minX=1e300,minZ=1e300,maxX=-1e300,maxZ=-1e300,cnt=0,p=outer;
+ do{minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z);cnt++;p=p.next}while(p!==outer);
+ const cs=Math.max(Math.sqrt(Math.max((maxX-minX)*(maxZ-minZ),1e-12)/Math.max(cnt,1))*2,1e-9);
+ gr={x0:minX,z0:minZ,cs,nx:Math.floor((maxX-minX)/cs)+1,nz:Math.floor((maxZ-minZ)/cs)+1,c:{}};
+ p=outer;do{gAdd(p);p=p.next}while(p!==outer);
+ earLoop(outer,0);
+ // earcut drops vertices that sit exactly on a straight edge; put them back by splitting the triangle that owns that edge
+ const n=X.length,used=new Uint8Array(n);for(const v of tris)used[v]=1;
+ const eT=new Map();for(let t=0;t<tris.length;t+=3)for(let k=0;k<3;k++)eT.set(tris[t+k]*n+tris[t+(k+1)%3],t);
+ for(let u=0;u<n;u++){if(used[u])continue;let hit=null;
+  for(const [key,t] of eT){const p=Math.floor(key/n),q=key-p*n;if(eT.has(q*n+p))continue;
+   const dx=X[q]-X[p],dz=Z[q]-Z[p],l2=dx*dx+dz*dz;if(!l2)continue;const tt=((X[u]-X[p])*dx+(Z[u]-Z[p])*dz)/l2;if(tt<=1e-9||tt>=1-1e-9)continue;
+   if(Math.abs((X[u]-X[p])*dz-(Z[u]-Z[p])*dx)/Math.sqrt(l2)<1e-7){hit=[p,q,t];break}}
+  if(!hit)continue;const[p,q,t]=hit;let r=-1;for(let k=0;k<3;k++)if(tris[t+k]===p&&tris[t+(k+1)%3]===q)r=tris[t+(k+2)%3];
+  eT.delete(p*n+q);tris[t]=p;tris[t+1]=u;tris[t+2]=r;eT.set(p*n+u,t);eT.set(u*n+r,t);eT.set(r*n+p,t);
+  const t2=tris.length;tris.push(u,q,r);eT.set(u*n+q,t2);eT.set(q*n+r,t2);eT.set(r*n+u,t2);used[u]=1}
+ let open=0;const ringE=new Set();
+ for(let k=0;k<rings.length;k++){const m=(hs[k+1]-hs[k]);for(let i=0;i<m;i++)ringE.add((hs[k]+i)*n+hs[k]+(i+1)%m)}
+ const stray=new Set();
+ for(const key of eT.keys()){const p=Math.floor(key/n),q=key-p*n;if(!eT.has(q*n+p)){open++;if(!ringE.has(key)&&!ringE.has(q*n+p)){stray.add(p);stray.add(q)}}}
+ return{X,Z,tris,ok:open===n&&!stray.size,stray:[...stray],starts:hs}}
+
+// builds open-bottom honeycomb voids inside the model. L = outer rim loop [x,z,...], out = model triangles (before the base walls)
+function honeycomb(out,L,P){
+ const t=P.t,rib=P.rib,s=P.cell,yb=P.yb,minD=Math.max(1,rib),NO=1e9;
+ let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;
+ for(let i=0;i<L.length;i+=2){if(L[i]<x0)x0=L[i];if(L[i]>x1)x1=L[i];if(L[i+1]<z0)z0=L[i+1];if(L[i+1]>z1)z1=L[i+1]}
+ const c=Math.max(.25,Math.max(x1-x0,z1-z0)/450),m=t+4*c,gx0=x0-m,gz0=z0-m,nx=Math.ceil((x1-x0+2*m)/c)+1,nz=Math.ceil((z1-z0+2*m)/c)+1,N=nx*nz;
+ // 1) lowest upward-facing surface in every column
+ let H=new Float32Array(N).fill(NO);
+ const stamp=(i,j,y)=>{const k=Math.round(j)*nx+Math.round(i);if(y<H[k])H[k]=y};
+ for(let q=0;q<out.length;q+=9){
+  const ux=out[q+3]-out[q],uy=out[q+4]-out[q+1],uz=out[q+5]-out[q+2],vx=out[q+6]-out[q],vy=out[q+7]-out[q+1],vz=out[q+8]-out[q+2];
+  const ny=uz*vx-ux*vz,l=Math.hypot(uy*vz-uz*vy,ny,ux*vy-uy*vx);if(!(ny>0)||ny/l<.02)continue;
+  const ya=out[q+1],yb2=out[q+4],yc=out[q+7],ia=(out[q]-gx0)/c,ja=(out[q+2]-gz0)/c,ib=(out[q+3]-gx0)/c,jb=(out[q+5]-gz0)/c,ic=(out[q+6]-gx0)/c,jc=(out[q+8]-gz0)/c;
+  stamp(ia,ja,ya);stamp(ib,jb,yb2);stamp(ic,jc,yc);
+  const i0=Math.max(0,Math.floor(Math.min(ia,ib,ic))),i1=Math.min(nx-1,Math.ceil(Math.max(ia,ib,ic))),j0=Math.max(0,Math.floor(Math.min(ja,jb,jc))),j1=Math.min(nz-1,Math.ceil(Math.max(ja,jb,jc))),den=(jb-jc)*(ia-ic)+(ic-ib)*(ja-jc);
+  if(Math.abs(den)<1e-12)continue;
+  for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){const l1=((jb-jc)*(i-ic)+(ic-ib)*(j-jc))/den,l2=((jc-ja)*(i-ic)+(ia-ic)*(j-jc))/den,l3=1-l1-l2;
+   if(l1>=-.02&&l2>=-.02&&l3>=-.02){const y=l1*ya+l2*yb2+l3*yc,k=j*nx+i;if(y<H[k])H[k]=y}}}
+ // close pin-holes left by rasterising, then keep the lowest value of every 3x3 (conservative: lowers slopes, shrinks the edge a little)
+ for(let pass=0;pass<2;pass++){const G=H.slice();
+  for(let j=1;j<nz-1;j++)for(let i=1;i<nx-1;i++){const k=j*nx+i;if(H[k]<NO)continue;let n=0,mn=NO;
+   for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const v=H[k+dj*nx+di];if(v<NO){n++;if(v<mn)mn=v}}
+   if(n>=6)G[k]=mn}
+  H=G}
+ const V=new Float32Array(N).fill(NO);
+ for(let j=1;j<nz-1;j++)for(let i=1;i<nx-1;i++){const k=j*nx+i;let mn=H[k],ok=mn<NO;
+  for(let dj=-1;dj<=1&&ok;dj++)for(let di=-1;di<=1;di++){const v=H[k+dj*nx+di];if(v>=NO){ok=false;break}if(v<mn)mn=v}
+  if(ok)V[k]=mn}
+ // 2) distance to the edge and the eroded roof (ball of radius t) per column
+ const Rw=Math.ceil((t+2)/c),F=new Float32Array(N),roof=new Float32Array(N).fill(NaN),top=yb+minD;
+ for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const k=j*nx+i;if(V[k]>=NO){F[k]=-t;continue}
+  let de=t+2,rf=Infinity;
+  for(let dj=-Rw;dj<=Rw;dj++){const jj=j+dj;if(jj<0||jj>=nz)continue;
+   for(let di=-Rw;di<=Rw;di++){const ii=i+di;if(ii<0||ii>=nx)continue;const d=Math.sqrt(di*di+dj*dj)*c;if(d>t+2)continue;
+    const v=V[jj*nx+ii];if(v>=NO){if(d<de)de=d}else if(d<=t){const r=v-Math.sqrt(t*t-d*d);if(r<rf)rf=r}}}
+  const f1=de-t;if(f1<0){F[k]=f1}else{roof[k]=rf;F[k]=Math.min(f1,rf-top)}}
+ // 3) honeycomb lattice: signed distance to the nearest rib
+ const a2x=s/2,a2z=s*Math.sqrt(3)/2,cx0=(x0+x1)/2,cz0=(z0+z1)/2,nb=[[s,0],[-s,0],[a2x,a2z],[-a2x,-a2z],[a2x-s,a2z],[s-a2x,-a2z]];
+ const hexD=(x,z)=>{const px=x-cx0,pz=z-cz0,v=pz/a2z,u=(px-v*a2x)/s,u0=Math.floor(u),v0=Math.floor(v);let bx=0,bz=0,bd=1e18;
+  for(let a=0;a<2;a++)for(let b=0;b<2;b++){const qx=(u0+a)*s+(v0+b)*a2x,qz=(v0+b)*a2z,d=(px-qx)*(px-qx)+(pz-qz)*(pz-qz);if(d<bd){bd=d;bx=qx;bz=qz}}
+  let md=1e9;for(const n of nb){const d=s/2-((px-bx)*n[0]+(pz-bz)*n[1])/s;if(d<md)md=d}return md};
+ for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const k=j*nx+i;if(F[k]>0){const h=hexD(gx0+i*c,gz0+j*c)-rib/2;if(h<F[k])F[k]=h}}
+ for(let i=0;i<nx;i++){F[i]=-1;F[(nz-1)*nx+i]=-1}for(let j=0;j<nz;j++){F[j*nx]=-1;F[j*nx+nx-1]=-1}
+ // 4) connected void regions (4-connected) and islands (8-connected outside)
+ const lab=new Int32Array(N);let nl=0;const stack=[];
+ for(let k0=0;k0<N;k0++){if(F[k0]<=0||lab[k0])continue;nl++;lab[k0]=nl;stack.push(k0);
+  while(stack.length){const k=stack.pop(),i=k%nx,j=(k-i)/nx;
+   if(i>0&&F[k-1]>0&&!lab[k-1]){lab[k-1]=nl;stack.push(k-1)}if(i<nx-1&&F[k+1]>0&&!lab[k+1]){lab[k+1]=nl;stack.push(k+1)}
+   if(j>0&&F[k-nx]>0&&!lab[k-nx]){lab[k-nx]=nl;stack.push(k-nx)}if(j<nz-1&&F[k+nx]>0&&!lab[k+nx]){lab[k+nx]=nl;stack.push(k+nx)}}}
+ const outside=new Uint8Array(N);stack.length=0;
+ for(let i=0;i<nx;i++){for(const k of[i,(nz-1)*nx+i])if(!outside[k]){outside[k]=1;stack.push(k)}}
+ for(let j=0;j<nz;j++){for(const k of[j*nx,j*nx+nx-1])if(!outside[k]){outside[k]=1;stack.push(k)}}
+ while(stack.length){const k=stack.pop(),i=k%nx,j=(k-i)/nx;
+  for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const ii=i+di,jj=j+dj;if(ii<0||jj<0||ii>=nx||jj>=nz)continue;const kk=jj*nx+ii;if(F[kk]<=0&&!outside[kk]){outside[kk]=1;stack.push(kk)}}}
+ const bad=new Uint8Array(nl+1);
+ for(let k=0;k<N;k++){if(F[k]>0||outside[k])continue;const i=k%nx,j=(k-i)/nx;
+  for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const ii=i+di,jj=j+dj;if(ii<0||jj<0||ii>=nx||jj>=nz)continue;const l=lab[jj*nx+ii];if(l)bad[l]=1}}
+ // 5) marching squares: outlines of the void regions, inside on the left
+ const T=[null,[['ab','da']],[['bc','ab']],[['bc','da']],[['cd','bc']],[['ab','da'],['cd','bc']],[['cd','ab']],[['cd','da']],[['da','cd']],[['ab','cd']],[['bc','ab'],['da','cd']],[['bc','cd']],[['da','bc']],[['ab','bc']],[['da','ab']],null];
+ const cr=new Map(),CX=[],CZ=[],CI=[],nxt=new Map();
+ const ek=(p,q)=>{const key=p<q?p*N+q:q*N+p;let id=cr.get(key);if(id!==undefined)return id;
+  const ins=F[p]>0?p:q,oth=ins===p?q:p,tt=Math.min(.95,Math.max(.05,F[ins]/(F[ins]-F[oth]))),pi=ins%nx,pj=(ins-pi)/nx,qi=oth%nx,qj=(oth-qi)/nx;
+  id=CX.length;cr.set(key,id);CX.push(gx0+(pi+(qi-pi)*tt)*c);CZ.push(gz0+(pj+(qj-pj)*tt)*c);CI.push(ins);return id};
+ for(let j=0;j<nz-1;j++)for(let i=0;i<nx-1;i++){const a=j*nx+i,b=a+1,cc=a+nx+1,d=a+nx;
+  const cs=(F[a]>0?1:0)|(F[b]>0?2:0)|(F[cc]>0?4:0)|(F[d]>0?8:0),tb=T[cs];if(!tb)continue;
+  const E={ab:[a,b],bc:[b,cc],cd:[cc,d],da:[d,a]};
+  for(const sg of tb){const e0=E[sg[0]],e1=E[sg[1]];nxt.set(ek(e0[0],e0[1]),ek(e1[0],e1[1]))}}
+ const loops=[],seen=new Set(),cnt=new Int32Array(nl+1);
+ for(const s0 of nxt.keys()){if(seen.has(s0))continue;const ids=[];let cu=s0,ok=true;
+  while(!seen.has(cu)){seen.add(cu);ids.push(cu);cu=nxt.get(cu);if(cu===undefined){ok=false;break}}
+  if(!ok||cu!==s0||ids.length<3)continue;
+  const l=lab[CI[ids[0]]];if(!l)continue;cnt[l]++;loops.push({ids,l})}
+ // 6) ceiling height at every grid node: the eroded roof (surface minus the wall thickness), taking the
+ // lowest of the 3x3 around each node so the flat triangles between nodes never come closer than t to the surface
+ const Cf=new Float32Array(N).fill(NaN),cfMin=yb+.2;
+ for(let j=1;j<nz-1;j++)for(let i=1;i<nx-1;i++){const k=j*nx+i;if(!(F[k]>0))continue;let mn=Infinity;
+  for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const r=roof[k+dj*nx+di];if(r===r&&r<mn)mn=r}
+  Cf[k]=Math.max(cfMin,(mn<Infinity?mn:roof[k])-.05)}
+ // smooth the ceilings without ever raising them (so the shell never gets thinner than t): take the lower envelope
+ // (lowest value within 2 sigma), blur it (sigma about 0.6 mm), and keep whichever is lower at every node
+ {const sg=Math.max(1,.6/c),Rm=Math.ceil(2*sg),Rg=Math.ceil(3*sg),E=new Float32Array(N).fill(NaN),tmp=new Float32Array(N).fill(NaN);
+  // lower envelope: separable min filter over defined nodes
+  for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const k=j*nx+i;if(!(Cf[k]===Cf[k]))continue;let mn=Cf[k];for(let d=-Rm;d<=Rm;d++){const ii=i+d;if(ii<0||ii>=nx)continue;const v=Cf[j*nx+ii];if(v===v&&v<mn)mn=v}tmp[k]=mn}
+  for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const k=j*nx+i;if(!(Cf[k]===Cf[k]))continue;let mn=tmp[k];for(let d=-Rm;d<=Rm;d++){const jj=j+d;if(jj<0||jj>=nz)continue;const v=tmp[jj*nx+i];if(v===v&&v<mn)mn=v}E[k]=mn}
+  // blur (normalised over defined nodes only), separable
+  const w=[];for(let d=-Rg;d<=Rg;d++)w.push(Math.exp(-d*d/(2*sg*sg)));
+  for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const k=j*nx+i;if(!(E[k]===E[k]))continue;let s=0,W=0;for(let d=-Rg;d<=Rg;d++){const ii=i+d;if(ii<0||ii>=nx)continue;const v=E[j*nx+ii];if(v===v){s+=w[d+Rg]*v;W+=w[d+Rg]}}tmp[k]=s/W}
+  for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const k=j*nx+i;if(!(E[k]===E[k]))continue;let s=0,W=0;for(let d=-Rg;d<=Rg;d++){const jj=j+d;if(jj<0||jj>=nz)continue;const v=tmp[jj*nx+i];if(v===v&&E[jj*nx+i]===E[jj*nx+i]){s+=w[d+Rg]*v;W+=w[d+Rg]}}const b=s/W;if(b<Cf[k])Cf[k]=Math.max(cfMin,b)}}
+ const hAt=id=>Cf[CI[id]];
+ // 7) tidy loops (the floor opening), keeping track of which raw outline point each kept point came from
+ const polys=[],accepted=new Map();
+ const inPoly=(px,pz)=>{let ins=false;for(let i=0,j=L.length-2;i<L.length;j=i,i+=2){if((L[i+1]>pz)!==(L[j+1]>pz)&&px<(L[j]-L[i])*(pz-L[i+1])/(L[j+1]-L[i+1])+L[i])ins=!ins}return ins};
+ for(const lp of loops){const l=lp.l;if(bad[l]||cnt[l]!==1)continue;
+  let P2=[];lp.ids.forEach((id,q)=>P2.push([CX[id],CZ[id],q]));
+  for(let pass=0;pass<2;pass++){const R2=[];const n=P2.length;
+   for(let i=0;i<n;i++){const a=P2[(i+n-1)%n],b=P2[i],d=P2[(i+1)%n],ex=d[0]-a[0],ez=d[1]-a[1],ll=Math.hypot(ex,ez)||1e-9;
+    if(Math.abs((b[0]-a[0])*ez-(b[1]-a[1])*ex)/ll>.004)R2.push(b)}
+   if(R2.length<3)break;P2=R2}
+  for(let again=true;again&&P2.length>=4;){again=false;const n=P2.length;
+   for(let i=0;i<n;i++){const a=P2[(i+n-1)%n],b=P2[i],d=P2[(i+1)%n],e1x=b[0]-a[0],e1z=b[1]-a[1],e2x=d[0]-b[0],e2z=d[1]-b[1],l1=Math.hypot(e1x,e1z)||1e-9,l2=Math.hypot(e2x,e2z)||1e-9;
+    if(Math.abs(e1x*e2z-e1z*e2x)/(l1*l2)<1e-4&&e1x*e2x+e1z*e2z<0){P2.splice(i,1);again=true;break}}}
+  if(P2.length<4)continue;
+  // a few-nanometre jitter so vertices of neighbouring voids never line up exactly (exact ties confuse the triangulator)
+  for(let i=0;i<P2.length;i++){const q=Math.sin(i*12.9898+polys.length*78.233)*43758.5453,r=Math.sin(i*39.346+polys.length*11.135)*24634.6345;
+   P2[i]=[P2[i][0]+((q-Math.floor(q))-.5)*4e-4,P2[i][1]+((r-Math.floor(r))-.5)*4e-4,P2[i][2]]}
+  let ar=0;for(let i=0;i<P2.length;i++){const a=P2[i],b=P2[(i+1)%P2.length];ar+=a[0]*b[1]-b[0]*a[1]}ar/=2;
+  if(ar<.5)continue;
+  let hi=-Infinity;for(const id of lp.ids)hi=Math.max(hi,hAt(id));
+  for(let k=0;k<N;k++)if(lab[k]===l&&Cf[k]>hi)hi=Cf[k];
+  if(!(hi-yb>=minD))continue;
+  let inside=true;for(const p of P2)if(!inPoly(p[0],p[1])){inside=false;break}if(!inside)continue;
+  const pl={P:P2,ids:lp.ids,tri:[],vol:0};polys.push(pl);accepted.set(l,pl)}
+ // 8) walls: straight along the floor opening, up to the ceiling's edge
+ for(const pl of polys){const P2=pl.P,ids=pl.ids,n=ids.length,m=P2.length,tr=pl.tri;
+  const top=q=>{const id=ids[((q%n)+n)%n];return[CX[id],hAt(id),CZ[id]]};
+  for(let i=0;i<m;i++){const a=P2[i],b=P2[(i+1)%m],ab=[a[0],yb,a[1]],bb=[b[0],yb,b[1]];let q0=a[2],q1=b[2];if(q1<=q0)q1+=n;
+   tr.push(...ab,...bb,...top(q1));
+   for(let q=q0;q<q1;q++)tr.push(...ab,...top(q+1),...top(q))}}
+ // 9) ceilings: the void's part of every grid square, at the node heights, facing down into the void
+ const CW=[[0,0],[1,0],[1,1],[0,1]];
+ for(let j=0;j<nz-1;j++)for(let i=0;i<nx-1;i++){const a=j*nx+i,cs=[a,a+1,a+nx+1,a+nx],inn=cs.map(k=>F[k]>0);
+  const any=inn.indexOf(true);if(any<0)continue;
+  const node=q=>[gx0+(i+CW[q][0])*c,Cf[cs[q]],gz0+(j+CW[q][1])*c],cross=q=>{const id=ek(cs[q],cs[(q+1)%4]);return[CX[id],hAt(id),CZ[id]]};
+  const pieces=[],code=inn.reduce((s,v,q)=>s|(v?1<<q:0),0);
+  // a diagonal pair can belong to two different cells (thin ribs), so each corner piece goes to its own cell
+  if(code===5||code===10){for(let q=0;q<4;q++)if(inn[q])pieces.push({pl:accepted.get(lab[cs[q]]),poly:[cross((q+3)%4),node(q),cross(q)]})}
+  else{const poly=[];for(let q=0;q<4;q++){if(inn[q])poly.push(node(q));if(inn[q]!==inn[(q+1)%4])poly.push(cross(q))}pieces.push({pl:accepted.get(lab[cs[any]]),poly})}
+  for(const{pl,poly}of pieces)if(pl)for(let k=1;k<poly.length-1;k++){let A=poly[0],B=poly[k],C2=poly[k+1];
+   const ny=(B[2]-A[2])*(C2[0]-A[0])-(B[0]-A[0])*(C2[2]-A[2]);if(ny>0){const t2=B;B=C2;C2=t2}
+   pl.tri.push(...A,...B,...C2);pl.vol+=Math.abs(ny)/2*((A[1]+B[1]+C2[1])/3-yb)}}
+ const cellsOut=[];
+ for(const pl of polys){const flat=[];for(const a of pl.P)flat.push(a[0],a[1]);cellsOut.push({flat,tri:pl.tri,vol:pl.vol})}
+ return{cells:cellsOut}}
+
+// ---------- pipeline ----------
+function creasedNormals(a,W,deg){const T=a.length/9,idx=W.idx,N=W.pts.length,raw=new Float32Array(T*3),un=new Float32Array(T*3);
+ for(let t=0;t<T;t++){const p=t*9,ux=a[p+3]-a[p],uy=a[p+4]-a[p+1],uz=a[p+5]-a[p+2],vx=a[p+6]-a[p],vy=a[p+7]-a[p+1],vz=a[p+8]-a[p+2],
+  x=uy*vz-uz*vy,y=uz*vx-ux*vz,z=ux*vy-uy*vx,l=Math.hypot(x,y,z);raw[t*3]=x;raw[t*3+1]=y;raw[t*3+2]=z;if(l>0){un[t*3]=x/l;un[t*3+1]=y/l;un[t*3+2]=z/l}}
+ const st=new Int32Array(N+1);for(let i=0;i<idx.length;i++)st[idx[i]+1]++;for(let i=0;i<N;i++)st[i+1]+=st[i];
+ const fl=new Int32Array(idx.length),fp=st.slice(0,N);for(let i=0;i<idx.length;i++)fl[fp[idx[i]]++]=(i/3)|0;
+ const cs=Math.cos(deg*Math.PI/180),out=new Float32Array(T*9);
+ for(let t=0;t<T;t++)for(let k=0;k<3;k++){const v=idx[t*3+k];let sx=0,sy=0,sz=0;
+  for(let e=st[v];e<st[v+1];e++){const f=fl[e];if(f===t||un[t*3]*un[f*3]+un[t*3+1]*un[f*3+1]+un[t*3+2]*un[f*3+2]>=cs){sx+=raw[f*3];sy+=raw[f*3+1];sz+=raw[f*3+2]}}
+  const l=Math.hypot(sx,sy,sz)||1,o=t*9+k*3;out[o]=sx/l;out[o+1]=sy/l;out[o+2]=sz/l}
+ return out}
+function show(a){hm=null;if(mesh){scene.remove(mesh);mesh.geometry.dispose()}
+ const W=weld(a),g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(a,3));g.setAttribute('normal',new THREE.BufferAttribute(creasedNormals(a,W,50),3));
+ mesh=new THREE.Mesh(g,curMat());scene.add(mesh);return W}
+let txPos=null;
+function txParams(){const str=$('txIn').value.trim();return str?{str,pt:+$('txS').value,depth:+$('txD').value,pos:txPos}:null}
+function txStatus(){const el=$('txMsg');if(!$('txIn').value.trim()){el.textContent='';return}
+ el.textContent=!baseOn?'Turn the base on to engrave.':!txInfo?'':txInfo.why?'Not engraved: '+txInfo.why+'.':'Engraved '+txInfo.depth.toFixed(1)+' mm deep. Drag on the base wall to move it.'}
+function build(){if(!src)return;const T=+$('bt').value;
+ const h=+$('cut').value;let out=h>hMin+1e-6?clip(src,h):Array.from(src),loops=0;if(polys.length)out=cutPolys(out,polys);if(smoothOn&&out.length>=9)out=fillHoles(smoothPeriphery(fillHoles(out),+$('sm').value));
+ if(out.length<9){res=null;$('stats').textContent='Nothing left after trimming.';$('done').disabled=true;return}
+ if(baseOn){fillHoles(out);loops=addBase(out,T,hollowOn?{t:+$('hlT').value,cell:+$('hlC').value,rib:+$('hlR').value}:null,txParams())}txStatus();
+ if(hcInfo&&hcInfo.cells){let v=0;for(let i=0;i<out.length;i+=9)v+=(out[i]*(out[i+4]*out[i+8]-out[i+5]*out[i+7])+out[i+1]*(out[i+5]*out[i+6]-out[i+3]*out[i+8])+out[i+2]*(out[i+3]*out[i+7]-out[i+4]*out[i+6]))/6;hcInfo.saved=Math.round(100*hcInfo.voidVol/(Math.abs(v)+hcInfo.voidVol))}
+ res=Float32Array.from(out);const W=show(res);
+ const open=boundary(W.pts,W.idx).bc;let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,z0=1e9,z1=-1e9;
+ for(let i=0;i<res.length;i+=3){x0=Math.min(x0,res[i]);x1=Math.max(x1,res[i]);y0=Math.min(y0,res[i+1]);y1=Math.max(y1,res[i+1]);z0=Math.min(z0,res[i+2]);z1=Math.max(z1,res[i+2])}
+ $('stats').innerHTML=`Triangles: ${(res.length/9).toLocaleString()}<br>Periphery: ${smoothOn?(smInfo&&smInfo.loops?'smoothed'+(smInfo.removed?' ('+smInfo.removed+' stray triangles removed)':''):'<b style="color:#d9822b">no edge found</b>'):'not smoothed'}<br>Base: ${!baseOn?'not generated yet':loops?'added ('+loops+' outline'+(loops>1?'s':'')+')':'<b style="color:#d9822b">not created</b>, no closed cut outline found'}<br>Hollow: ${hollowOn?(hcInfo&&hcInfo.cells?hcInfo.cells+' honeycomb cells, about '+hcInfo.saved+'% less material':'<b style="color:#d9822b">not created</b>'+(hcInfo&&hcInfo.why?' ('+hcInfo.why+')':'')):'off'}<br>Size: ${(x1-x0).toFixed(1)} × ${(z1-z0).toFixed(1)} × ${(y1-y0).toFixed(1)} (scan units)<br>`+
+  (open===0?'<b style="color:var(--ac)">Watertight ✓ ready to print</b>':`<b style="color:#d9822b">${open} open edges</b> – may need repair${loops?'':' (generate a base to close the open edge)'}`);
+ $('done').disabled=false;txPrev()}
+function sched(){clearTimeout(tmr);tmr=setTimeout(build,120)}
+function updPlane(){const h=+$('cut').value;$('hv').textContent=h.toFixed(1);plane.scale.set(ext[0]*1.5+10,ext[1]*1.5+10,1);plane.position.y=h;plane.visible=!!src&&planeOn;$('bv').textContent=(+$('bt').value).toFixed(1);$('smv').textContent=(+$('sm').value).toFixed(1);$('hlTv').textContent=(+$('hlT').value).toFixed(1);$('hlCv').textContent=(+$('hlC').value).toFixed(1);$('hlRv').textContent=(+$('hlR').value).toFixed(1);$('txSv').textContent=$('txS').value+' pt';$('txDv').textContent=(+$('txD').value).toFixed(1)+' mm';$('txCnt').textContent=$('txIn').value.length?$('txIn').value.length+'/40':'';updGizmo()}
+function setRange(){const c=$('cut');c.min=hMin;c.max=hMax;c.step=(hMax-hMin)/500;c.value=hMin;updPlane()}
+function reorient(fn,fit){fn();clearPoly();recenter(src);setRange();build();if(fit)fitCam()}
+function fitCam(){const r=Math.max(hMax,60);cam.position.set(r*.9,r*1.1,r*1.4);ctl.target.set(0,hMax/3,0);ctl.update()}
+function load(pos,flip){src=Float32Array.from(pos);mbXform.identity();
+ // the planner keeps the maxilla teeth-down; turn it teeth-up about the front-back axis so the front stays in front
+ if(flip)applyQ(src,new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),Math.PI));
+ planeOn=true;go(0);
+ ['auto','flip','rot','cut','bt','hlBtn','hlView','hlT','hlC','hlR','genBase','drawBtn','smBtn','sm','txIn','txS','txD','txReset'].forEach(i=>$(i).disabled=false);
+ reorient(()=>{},true);$('msg').textContent=''}
+function restart(){
+ clearTimeout(tmr);src=null;res=null;hm=null;hcInfo=null;smInfo=null;hollowOn=false;baseOn=false;smoothOn=false;planeOn=false;gizmoOn=false;underV=false;ovHide=false;step=-1;secs.forEach(d=>d.open=false);navUi();
+ clearPoly();if(mesh){scene.remove(mesh);mesh.geometry.dispose();mesh=null}
+ ['sm','bt','hlT','hlC','hlR','txS','txD'].forEach(i=>$(i).value=$(i).defaultValue);$('txIn').value='';$('txMsg').textContent='';txPos=null;wallInfo=null;txPrev();
+ ['auto','flip','rot','cut','bt','hlBtn','hlView','hlT','hlC','hlR','genBase','drawBtn','smBtn','sm','undoBtn','clrBtn','done','txIn','txS','txD','txReset'].forEach(i=>$(i).disabled=true);
+ $('smBtn').textContent='Smooth periphery';$('genBase').textContent='Generate base';$('hlBtn').textContent='Hollow with honeycomb';$('hlView').textContent='View underside';
+ hMin=0;hMax=1;ext=[60,60];$('cut').value=0;updPlane();plane.visible=false;gz.visible=false;
+ $('stats').textContent='No model loaded.';$('msg').textContent='';
+ ctl.enabled=true;ctl.enablePan=true;cv.style.cursor=''}
+// ---------- trim polygons ----------
+const lmDone=new THREE.LineBasicMaterial({color:0xff7a00}),lmCur=new THREE.LineBasicMaterial({color:0xffd400}),
+ pm=new THREE.PointsMaterial({color:0xffd400,size:9,sizeAttenuation:false}),pmFirst=new THREE.PointsMaterial({color:0xff2a2a,size:11,sizeAttenuation:false}),rc=new THREE.Raycaster(),segCache=new Map();
+function pip(x,z,P){let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const a=P[i],b=P[j];if((a[1]>z)!==(b[1]>z)&&x<(b[0]-a[0])*(z-a[1])/(b[1]-a[1])+a[0])c=!c}return c}
+function cutPolys(o,Ps){const r=[];for(let i=0;i<o.length;i+=9){const x=(o[i]+o[i+3]+o[i+6])/3,z=(o[i+2]+o[i+5]+o[i+8])/3;
+ if(!Ps.some(P=>pip(x,z,P)))for(let k=0;k<9;k++)r.push(o[i+k])}return r}
+// points are stored as [x,z,y] and only ever land on the scan surface
+// fast picking: the model's top surface is rasterised once into a height grid, then the mouse ray is marched across it
+function buildHM(){let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9,y1=-1e9;
+ for(let i=0;i<res.length;i+=3){const x=res[i],y=res[i+1],z=res[i+2];if(x<x0)x0=x;if(x>x1)x1=x;if(z<z0)z0=z;if(z>z1)z1=z;if(y>y1)y1=y}
+ const c=Math.max(.4,Math.max(x1-x0,z1-z0)/700),nx=Math.ceil((x1-x0)/c)+3,nz=Math.ceil((z1-z0)/c)+3,H=new Float32Array(nx*nz).fill(-1e9);
+ for(let t=0;t<res.length;t+=9){
+  const ya=res[t+1],yb=res[t+4],yc=res[t+7],ia=(res[t]-x0)/c+1,ja=(res[t+2]-z0)/c+1,ib=(res[t+3]-x0)/c+1,jb=(res[t+5]-z0)/c+1,ic=(res[t+6]-x0)/c+1,jc=(res[t+8]-z0)/c+1;
+  const st=(i,j,y)=>{const k=Math.round(j)*nx+Math.round(i);if(y>H[k])H[k]=y};st(ia,ja,ya);st(ib,jb,yb);st(ic,jc,yc);
+  const i0=Math.max(0,Math.floor(Math.min(ia,ib,ic))),i1=Math.min(nx-1,Math.ceil(Math.max(ia,ib,ic))),j0=Math.max(0,Math.floor(Math.min(ja,jb,jc))),j1=Math.min(nz-1,Math.ceil(Math.max(ja,jb,jc))),
+   den=(jb-jc)*(ia-ic)+(ic-ib)*(ja-jc);
+  if(Math.abs(den)<1e-12)continue;
+  for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){const l1=((jb-jc)*(i-ic)+(ic-ib)*(j-jc))/den,l2=((jc-ja)*(i-ic)+(ia-ic)*(j-jc))/den,l3=1-l1-l2;
+   if(l1>=-.02&&l2>=-.02&&l3>=-.02){const y=l1*ya+l2*yb+l3*yc,k=j*nx+i;if(y>H[k])H[k]=y}}}
+ hm={c,x0,z0,nx,nz,H,x1,z1,y1}}
+function hAt(x,z){const ix=Math.round((x-hm.x0)/hm.c)+1,iz=Math.round((z-hm.z0)/hm.c)+1;
+ return ix<0||iz<0||ix>=hm.nx||iz>=hm.nz?-1e9:hm.H[iz*hm.nx+ix]}
+function rayHM(ox,oy,oz,dx,dy,dz){if(!hm)buildHM();
+ const lo=[hm.x0-1,-1,hm.z0-1],hi=[hm.x1+1,hm.y1+1,hm.z1+1],O=[ox,oy,oz],D=[dx,dy,dz];let t0=0,t1=1e9;
+ for(let k=0;k<3;k++){if(Math.abs(D[k])<1e-9){if(O[k]<lo[k]||O[k]>hi[k])return null}
+  else{let a=(lo[k]-O[k])/D[k],b=(hi[k]-O[k])/D[k];if(a>b){const q=a;a=b;b=q}if(a>t0)t0=a;if(b<t1)t1=b}}
+ if(t1<t0)return null;const st=hm.c*.4,H=t=>hAt(ox+dx*t,oz+dz*t);
+ for(let t=t0;t<=t1+st;t+=st){if(oy+dy*t<=H(t)){let a=Math.max(t0,t-st),b=t;
+   for(let i=0;i<12;i++){const m=(a+b)/2;if(oy+dy*m<=H(m))b=m;else a=m}
+   return[ox+dx*b,oz+dz*b,H(b)]}}
+ return null}
+function pick(e){if(!mesh||!res)return null;const r=cv.getBoundingClientRect(),n=new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);
+ rc.setFromCamera(n,cam);const o=rc.ray.origin,d=rc.ray.direction,h=rayHM(o.x,o.y,o.z,d.x,d.y,d.z);if(h)return h;
+ const v=new THREE.Vector3();return rc.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),-(+$('cut').value)),v)?[v.x,v.z,v.y]:null}
+function surfY(x,z,fb){if(!hm)buildHM();const v=hAt(x,z);return v<-1e8?fb:v}
+function seg(a,b){const k=a+'|'+b,c=segCache.get(k);if(c)return c;
+ const d=Math.hypot(b[0]-a[0],b[1]-a[1]),n=Math.min(60,Math.max(1,Math.ceil(d/1.5))),o=[];
+ for(let i=0;i<=n;i++){const t=i/n,x=a[0]+(b[0]-a[0])*t,z=a[1]+(b[1]-a[1])*t,y=i===0?a[2]:i===n?b[2]:surfY(x,z,a[2]+(b[2]-a[2])*t);o.push(new THREE.Vector3(x,y+.3,z))}
+ segCache.set(k,o);return o}
+function path(P,closed){const o=[];for(let i=1;i<P.length;i++)o.push(...seg(P[i-1],P[i]));if(closed)o.push(...seg(P[P.length-1],P[0]));return o}
+let ovHide=false;
+function setOv(h){ovHide=h;if(overlay)overlay.visible=!h}
+function redraw(){if(overlay){scene.remove(overlay);overlay.traverse(o=>o.geometry&&o.geometry.dispose());overlay=null}
+ const g=new THREE.Group();
+ polys.forEach(P=>{const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(path(P,true)),lmDone);l.renderOrder=9;g.add(l)});
+ if(cur.length){
+  if(cur.length>1){const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(path(cur,false)),lmCur);l.renderOrder=9;g.add(l)}
+  const pt=new THREE.Points(new THREE.BufferGeometry().setFromPoints(cur.map(p=>new THREE.Vector3(p[0],p[2]+.3,p[1]))),pm);pt.renderOrder=10;g.add(pt);
+   // the first point is red so the start of the outline is easy to find
+   const p0=cur[0],f=new THREE.Points(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(p0[0],p0[2]+.3,p0[1])]),pmFirst);f.renderOrder=11;g.add(f)}
+ g.visible=!ovHide;overlay=g;scene.add(g);
+ const none=!cur.length&&!polys.length;$('undoBtn').disabled=none;$('clrBtn').disabled=none}
+function setDraw(on){drawing=on;ctl.enablePan=!on;$('hint').textContent=on?'Left-click: add point · Right-click: finish · Right-drag: rotate · Scroll: zoom':$('hint').dataset.def;$('drawBtn').textContent=on?'Click points on model\u2026':'Add polygon';cv.style.cursor=on?'crosshair':''}
+function clearPoly(){polys=[];cur=[];segCache.clear();setDraw(false);redraw()}
+function finish(){if(cur.length<3){$('msg').textContent='Need at least 3 points.';return}
+ polys.push(cur);cur=[];setDraw(false);$('msg').textContent='';redraw();$('msg').textContent='Trimming…';setTimeout(()=>{build();$('msg').textContent=''},30)}
+let dn=null;
+onCv('pointerdown',e=>{dn=[e.clientX,e.clientY,e.button]});
+onCv('pointerup',e=>{if(!drawing||!dn)return;const m=Math.hypot(e.clientX-dn[0],e.clientY-dn[1]),b=dn[2];dn=null;
+ if(m>(b===0?14:6)||(b!==0&&b!==2))return;const p=pick(e);if(!p){$('msg').textContent='Click on or beside the model.';return}$('msg').textContent='';cur.push(p);
+ if(b===2){finish();return}redraw()});
+$('drawBtn').onclick=()=>{if(drawing){cur=[];setDraw(false);redraw();return}
+ cur=[];setOv(false);setDraw(true);redraw();
+ topViewFrontUp(!polys.length)};
+// looking straight down on the model with the front teeth at the top of the screen (their facial surfaces toward the top)
+function topViewFrontUp(fit){const a=res||src;if(!a)return;
+ // the front of the arch is its narrow, closed end: compare how wide the model is near each end along front-back
+ let z0=1e9,z1=-1e9;for(let i=2;i<a.length;i+=3){if(a[i]<z0)z0=a[i];if(a[i]>z1)z1=a[i]}
+ const band=(z1-z0)*.15;let lo=[1e9,-1e9],hi=[1e9,-1e9];
+ for(let i=0;i<a.length;i+=9){const x=a[i],z=a[i+2];if(z<z0+band){lo[0]=Math.min(lo[0],x);lo[1]=Math.max(lo[1],x)}if(z>z1-band){hi[0]=Math.min(hi[0],x);hi[1]=Math.max(hi[1],x)}}
+ const front=(hi[1]-hi[0])<=(lo[1]-lo[0])?1:-1;   // +1: front is toward +z
+ const r=fit?Math.max(hMax,60)*2.4:Math.max(10,cam.position.distanceTo(ctl.target));if(fit)ctl.target.set(0,0,0);
+ cam.up.set(0,1,0);cam.position.set(ctl.target.x,ctl.target.y+r,ctl.target.z-front*.01*r);cam.lookAt(ctl.target);ctl.update()}
+
+$('undoBtn').onclick=()=>{if(cur.length)cur.pop();else if(polys.length){polys.pop();build()}redraw()};
+$('clrBtn').onclick=()=>{const had=polys.length>0;clearPoly();if(had)build()};
+// ---------- UI wiring ----------
+$('auto').onclick=()=>{if(gizmoOn){gizmoOn=false;updGizmo();return}gizmoOn=true;reorient(autoOrient);updGizmo()};
+$('flip').onclick=()=>reorient(()=>applyQ(src,new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),Math.PI)));
+$('rot').onclick=()=>reorient(()=>applyQ(src,new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI/2)));
+$('cut').oninput=()=>{updPlane();sched()};
+// blue plane belongs to the cut tool: on while the slider is used, off as soon as any other control is used
+function setPlane(on){planeOn=on;updPlane()}
+['pointerdown','focus','input'].forEach(ev=>$('cut').addEventListener(ev,()=>setPlane(true)));
+const sideOff=e=>{const c=e.target.closest&&e.target.closest('button,input,select');
+ const cid=c?c.id.replace(/^mb-/,''):''; // controls carry an mb- prefix inside the planner
+ if(c){if(['smBtn','sm','genBase','bt','hlBtn','hlView','hlT','hlC','hlR','txIn','txS','txD','txReset'].includes(cid))setOv(true);else if(['drawBtn','undoBtn','clrBtn'].includes(cid))setOv(false)}
+if(c&&!c.closest('#mb-orientSec')){gizmoOn=false;setPlane(false)}};
+$('panel').addEventListener('pointerdown',sideOff,true);
+$('panel').addEventListener('focusin',sideOff);$('bt').oninput=()=>{updPlane();sched()};
+$('smBtn').onclick=()=>{smoothOn=!smoothOn;$('smBtn').textContent=smoothOn?'Smoothing on (click to turn off)':'Smooth periphery';build()};
+$('sm').oninput=()=>{updPlane();if(smoothOn)sched()};
+
+// ---------- step navigation: Previous / Next in the viewport ----------
+const secs=[...$('panel').querySelectorAll('details')],stepNames=['Orient','Poly trim','Smooth periphery','Base','Hollow','Engrave text'];let step=-1;
+function navUi(){const p=$('prev'),n=$('next');p.hidden=step<1;n.hidden=step<0||step>=secs.length-1;
+ if(step>0)p.textContent='\u2190 Previous: '+stepNames[step-1];if(step>=0&&step<secs.length-1)n.textContent='Next: '+stepNames[step+1]+' \u2192'}
+function go(i){
+ if(drawing){cur=[];setDraw(false);redraw()}
+ if(step===0&&i!==0){gizmoOn=false;setPlane(false);updGizmo()}
+ if(i===0&&src)setPlane(true);
+ setOv(i!==1);
+ step=i;secs.forEach((d,k)=>d.open=k===i);navUi();txPrev();
+ if(secs[i])secs[i].scrollIntoView({block:'nearest',behavior:'smooth'})}
+$('prev').onclick=()=>step>0&&go(step-1);
+$('next').onclick=()=>step>=0&&step<secs.length-1&&go(step+1);
+// arriving at the poly trim step (by Next or by opening it) turns the model front-teeth-up, seen from above
+secs[1].addEventListener('toggle',()=>{if(secs[1].open&&src&&!drawing)topViewFrontUp(true)});
+// using a control in a section makes it the current step
+$('panel').addEventListener('pointerdown',e=>{const d=e.target.closest&&e.target.closest('aside details');const k=d?secs.indexOf(d):-1;if(k>=0&&src&&step!==k&&e.target.closest('button,input,select')){step=k;navUi()}},true);
+
+// ---------- text placement: preview outline and drag on the base wall ----------
+let txLine=null,txDrag=false;
+const txActive=()=>step===5&&!!wallInfo&&baseOn&&!!$('txIn').value.trim();
+function txPrev(){
+ if(txLine){scene.remove(txLine);txLine.geometry.dispose();txLine=null}
+ if(!txActive()||!(wallInfo.half>0)){if(!gz.visible&&!gDrag)ctl.enabled=true;cv.style.cursor=drawing?'crosshair':'';return}
+ const w=wallInfo,n=w.P.length,idx=w.P.map((_,i)=>i),G=wallGeom(idx,w.P),loc=wallLocate(G,w.cx,w.cz),cols=wallCols(G,loc.e,loc.t,w.half,w.half),y0=w.yb+w.v-w.hh,y1=w.yb+w.v+w.hh,top=[],bot=[];
+ const en=i=>{const a=w.P[i],b=w.P[(i+1)%n],l=Math.hypot(b[0]-a[0],b[2]-a[2])||1;return[-(b[2]-a[2])/l,(b[0]-a[0])/l]};
+ for(const c of cols){const P=w.P[c.i],e0=en((c.i+n-1)%n),e1=en(c.i);let nx=e0[0]+e1[0],nz=e0[1]+e1[1];const l=Math.hypot(nx,nz)||1;nx=nx/l*.12;nz=nz/l*.12;
+  bot.push(new THREE.Vector3(P[0]+nx,y0,P[2]+nz));top.push(new THREE.Vector3(P[0]+nx,y1,P[2]+nz))}
+ txLine=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(bot.concat(top.reverse())),new THREE.LineBasicMaterial({color:0x00d8ff,depthTest:false}));txLine.renderOrder=20;scene.add(txLine)}
+function wallHit(e){if(!wallInfo)return null;gRay(e);const o=rcg.ray.origin,d=rcg.ray.direction,P=wallInfo.P,n=P.length,yb=wallInfo.yb;let best=1e18,res=null;
+ for(let i=0;i<n;i++){const A=P[i],B=P[(i+1)%n],ex=B[0]-A[0],ez=B[2]-A[2],den=d.x*ez-d.z*ex;if(Math.abs(den)<1e-12)continue;
+  const wx=A[0]-o.x,wz=A[2]-o.z,t=(wx*ez-wz*ex)/den,q=(wx*d.z-wz*d.x)/den;if(t<=0||q<0||q>1||t>=best)continue;
+  if(-ez*d.x+ex*d.z>=0)continue;const y=o.y+t*d.y;if(y<yb||y>A[1]+(B[1]-A[1])*q)continue;best=t;res=[o.x+t*d.x,y,o.z+t*d.z]}
+ return res}
+onCv('pointermove',e=>{
+ if(txDrag){const h=wallHit(e);if(h){wallInfo.cx=h[0];wallInfo.cz=h[2];wallInfo.v=h[1]-wallInfo.yb;txPrev()}return}
+ if(!txActive())return;const h=wallHit(e);ctl.enabled=!h;cv.style.cursor=h?'grab':''});
+onCv('pointerdown',e=>{if(e.button!==0||!txActive())return;const h=wallHit(e);if(!h)return;
+ ctl.enabled=false;txDrag=true;wallInfo.cx=h[0];wallInfo.cz=h[2];wallInfo.v=h[1]-wallInfo.yb;txPrev();cv.style.cursor='grabbing';try{cv.setPointerCapture(e.pointerId)}catch(_){}e.stopPropagation()});
+function txEnd(){if(!txDrag)return;txDrag=false;ctl.enabled=true;cv.style.cursor='';txPos={x:wallInfo.cx,z:wallInfo.cz,v:wallInfo.v};$('txMsg').textContent='Engraving…';setTimeout(build,20)}
+onCv('pointerup',txEnd);onCv('pointercancel',txEnd);
+let underV=false;
+$('txIn').oninput=()=>{if($('txIn').value.trim()&&!baseOn){baseOn=true;$('genBase').textContent='Remove base'}updPlane();sched()};
+['txS','txD'].forEach(i=>$(i).oninput=()=>{updPlane();if($('txIn').value.trim())sched()});
+$('txReset').onclick=()=>{txPos=null;build()};
+function toggleUnder(){underV=!underV;const d=Math.max(ext[0],ext[1],hMax,20)*1.5;cam.position.set(0,underV?-d:d,d*.002);ctl.target.set(0,0,0);ctl.update();$('hlView').textContent=underV?'View top':'View underside'}
+$('hlView').onclick=toggleUnder;
+$('hlBtn').onclick=()=>{hollowOn=!hollowOn;if(hollowOn&&!baseOn){baseOn=true;$('genBase').textContent='Remove base'}
+ $('hlBtn').textContent=hollowOn?'Hollow on (click to turn off)':'Hollow with honeycomb';$('msg').textContent=hollowOn?'Hollowing…':'';setTimeout(()=>{build();$('msg').textContent=''},30)};
+['hlT','hlC','hlR'].forEach(id=>{$(id).oninput=()=>{updPlane();if(hollowOn)sched()}});
+$('genBase').onclick=()=>{baseOn=!baseOn;if(!baseOn){hollowOn=false;$('hlBtn').textContent='Hollow with honeycomb'}$('genBase').textContent=baseOn?'Remove base':'Generate base';build()};
+// hand-off to the planner
+return {
+ open:(pos,flip)=>{restart();load(pos,flip)},
+ result:()=>res,
+ close:()=>{if(drawing){cur=[];setDraw(false);redraw()}gizmoOn=false;updGizmo();ctl.enabled=true;ctl.enablePan=true;cv.style.cursor=''},
+ reset:restart,
+ refit:()=>fitCam(),
+ status:()=>({base:baseOn,open:res?openEdges(res):null}),
+};
+}
+
+const MB = createModelBuilder(() => true);
+
+/* ---------- shell: arch, loading, export ---------- */
+let arch = 'upper', lastPos = null, lastName = '';
+const ARCH_LABEL = { upper: 'Maxillary', lower: 'Mandibular' };
+function setArch(a) {
+  arch = a;
+  $('#archUpper').setAttribute('aria-pressed', String(a === 'upper')); $('#archLower').setAttribute('aria-pressed', String(a === 'lower'));
+  if (lastPos) openScan(lastPos, lastName);
+}
+$('#archUpper').onclick = () => { if (arch !== 'upper') setArch('upper'); };
+$('#archLower').onclick = () => { if (arch !== 'lower') setArch('lower'); };
+function openScan(pos, name) {
+  lastPos = pos; lastName = name;
+  MB.open(orientLikePlanner(pos, arch), arch === 'upper');
+  MB.refit();
+  $('#dropMsg').hidden = true;
+  $('#modelName').textContent = name;
+  $('#leftTitle').textContent = arch === 'upper' ? 'Maxilla model' : 'Mandible model';
+  $('#mb-lead').textContent = `Build the ${arch === 'upper' ? 'maxillary' : 'mandibular'} model with the tools below, step by step, then export it as an STL.`;
+  $('#status').innerHTML = `<span class="chip on">Model builder · ${ARCH_LABEL[arch]}</span>`;
+}
+async function loadFile(file) {
+  if (!file) return;
+  try {
+    const geo = parseScan(file, await file.arrayBuffer());
+    const g = geo.index ? geo.toNonIndexed() : geo;
+    openScan(Float32Array.from(g.attributes.position.array), file.name);
+    toast(`Loaded ${file.name}`);
+  } catch (e) { toast(e.message === 'format' ? 'Use an STL, PLY or OBJ file.' : 'That file could not be read as a 3D scan.'); }
+}
+$('#fileIn').onchange = (e) => { loadFile(e.target.files[0]); e.target.value = ''; };
+$('#mb-reload').onclick = () => $('#fileIn').click();
+stage.addEventListener('dragover', (e) => { e.preventDefault(); stage.classList.add('dragover'); });
+stage.addEventListener('dragleave', () => stage.classList.remove('dragover'));
+stage.addEventListener('drop', (e) => { e.preventDefault(); stage.classList.remove('dragover'); loadFile(e.dataTransfer.files[0]); });
+// a single-file .zip (stored, no compression) around the STL
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipStore(name, data) {
+  const nm = new TextEncoder().encode(name), crc = crc32(data), sz = data.length;
+  const d = new Date(), time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  const loc = new DataView(new ArrayBuffer(30)), cen = new DataView(new ArrayBuffer(46)), end = new DataView(new ArrayBuffer(22));
+  loc.setUint32(0, 0x04034b50, true); loc.setUint16(4, 20, true); loc.setUint16(6, 0x0800, true); loc.setUint16(8, 0, true);
+  loc.setUint16(10, time, true); loc.setUint16(12, date, true); loc.setUint32(14, crc, true); loc.setUint32(18, sz, true); loc.setUint32(22, sz, true); loc.setUint16(26, nm.length, true);
+  cen.setUint32(0, 0x02014b50, true); cen.setUint16(4, 20, true); cen.setUint16(6, 20, true); cen.setUint16(8, 0x0800, true); cen.setUint16(10, 0, true);
+  cen.setUint16(12, time, true); cen.setUint16(14, date, true); cen.setUint32(16, crc, true); cen.setUint32(20, sz, true); cen.setUint32(24, sz, true); cen.setUint16(28, nm.length, true);
+  const cenOff = 30 + nm.length + sz;
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, 1, true); end.setUint16(10, 1, true); end.setUint32(12, 46 + nm.length, true); end.setUint32(16, cenOff, true);
+  return new Blob([loc, nm, data, cen, nm, end], { type: 'application/zip' });
+}
+// export: the finished model as built, standing on its base, ready to print
+let downloads = null;
+const downloadsReady = (async () => { try { downloads = window.claude?.use ? await window.claude.use('downloads') : null; } catch (e) { downloads = null; } })();
+$('#mb-done').onclick = async () => {
+  const res = MB.result(); if (!res) { toast('Build the model first.'); return; }
+  const base = (lastName || 'model').replace(/\.[^.]+$/, '');
+  const filename = `${base}_${arch === 'upper' ? 'maxillary' : 'mandibular'}_model.stl`;
+  const data = new Uint8Array(stlBinary(res, filename));
+  await downloadsReady;
+  if (downloads) {
+    // the page's download allowlist has no .stl, so the STL goes out inside a .zip
+    const zipName = filename.replace(/\.stl$/, '.zip');
+    try { await downloads.save({ filename: zipName, data: zipStore(filename, data) }); toast(`Saved ${zipName}: unzip it to get ${filename}`); }
+    catch (e) { toast(e?.code === 'declined' ? 'Save cancelled.' : `The file could not be saved (${e?.code || 'error'}).`); }
+    return;
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type: 'model/stl' })); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  const st = MB.status(); toast(`Saved ${filename}${st.base ? (st.open === 0 ? ' (watertight)' : ` (${st.open} open edges)`) : ' (no base)'}`);
+};
+</script>
+</body>
+</html>
